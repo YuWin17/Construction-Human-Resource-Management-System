@@ -1,0 +1,31 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Go build artifacts and local runtime data
+backend/data/
+backend/storage/
+backend/bin/
+backend/.cache/
+backend/.logs/
+backend/uploads/
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Node.js artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/.logs/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+coverage/
