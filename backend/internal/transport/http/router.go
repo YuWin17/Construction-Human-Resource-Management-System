@@ -35,7 +35,9 @@ func NewRouter(cfg config.Config, logger *slog.Logger, auth *service.AuthService
 		}
 	}
 	handler := NewHandler(auth, talentService, contractService, reminderService)
+	handler.dailyReminderToken = cfg.DailyReminderToken
 	api.POST("/auth/login", handler.Login)
+	api.GET("/integrations/wecom/daily-reminder", handler.DailyReminderMessage)
 
 	protected := api.Group("")
 	protected.Use(RequireAuth(auth))

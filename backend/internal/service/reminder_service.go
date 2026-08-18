@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"gorm.io/gorm"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -143,6 +144,108 @@ func (s *ReminderService) List(ctx context.Context, status string) ([]ReminderIt
 		add("delivery_order_expiry", order.ID, "", strings.Join(names, "、"), subject, order.ContractExpiresOn, cd)
 	}
 	return items, nil
+}
+
+const dailyReminderMessageLimit = 50
+
+// DailyReminderMessage produces a concise, non-sensitive text body for an
+// external scheduler to deliver to a chat group.
+func DailyReminderMessage(items []ReminderItem, now time.Time) string {
+	pending := make([]ReminderItem, 0, len(items))
+	for _, item := range items {
+		if item.Status == "pending" {
+			pending = append(pending, item)
+		}
+	}
+	sort.SliceStable(pending, func(i, j int) bool {
+		left, right := reminderLevelOrder(pending[i].Level), reminderLevelOrder(pending[j].Level)
+		if left != right {
+			return left < right
+		}
+		if pending[i].DaysRemaining != pending[j].DaysRemaining {
+			return pending[i].DaysRemaining < pending[j].DaysRemaining
+		}
+		return pending[i].DueDate < pending[j].DueDate
+	})
+
+	date := now.In(time.FixedZone("CST", 8*3600)).Format("2006-01-02")
+	if len(pending) == 0 {
+		return fmt.Sprintf("【每日到期提醒】%s\n今日无待处理到期事项。", date)
+	}
+
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "【每日到期提醒】%s\n待处理 %d 项\n", date, len(pending))
+	limit := len(pending)
+	if limit > dailyReminderMessageLimit {
+		limit = dailyReminderMessageLimit
+	}
+	for _, item := range pending[:limit] {
+		fmt.Fprintf(&builder, "- [%s] %s%s，到期：%s（%s）\n", reminderLevelLabel(item.Level), reminderTypeLabel(item.Type), reminderSubject(item), item.DueDate, reminderDaysLabel(item.DaysRemaining))
+	}
+	if remaining := len(pending) - limit; remaining > 0 {
+		fmt.Fprintf(&builder, "另有 %d 项未展示，请登录系统查看。\n", remaining)
+	}
+	return strings.TrimSuffix(builder.String(), "\n")
+}
+
+func reminderLevelOrder(level string) int {
+	switch level {
+	case "expired":
+		return 0
+	case "urgent":
+		return 1
+	default:
+		return 2
+	}
+}
+
+func reminderLevelLabel(level string) string {
+	switch level {
+	case "expired":
+		return "已到期"
+	case "urgent":
+		return "紧急"
+	default:
+		return "提醒"
+	}
+}
+
+func reminderTypeLabel(kind string) string {
+	switch kind {
+	case "contract_expiry":
+		return "合同"
+	case "certificate_expiry":
+		return "证书"
+	case "delivery_order_expiry":
+		return "送证单"
+	default:
+		return "事项"
+	}
+}
+
+func reminderSubject(item ReminderItem) string {
+	parts := make([]string, 0, 2)
+	if item.TalentName != "" {
+		parts = append(parts, item.TalentName)
+	}
+	if item.Subject != "" {
+		parts = append(parts, item.Subject)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "：" + strings.Join(parts, " / ")
+}
+
+func reminderDaysLabel(days int) string {
+	switch {
+	case days < 0:
+		return fmt.Sprintf("已逾期 %d 天", -days)
+	case days == 0:
+		return "今日到期"
+	default:
+		return fmt.Sprintf("剩余 %d 天", days)
+	}
 }
 func (s *ReminderService) Handle(ctx context.Context, id, status, adminID string) error {
 	if status != "handled" && status != "ignored" {

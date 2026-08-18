@@ -43,6 +43,7 @@ JWT_SECRET=至少 32 位随机字符串
 JWT_TTL_HOURS=8
 INITIAL_ADMIN_USERNAME=你的管理员账号
 INITIAL_ADMIN_PASSWORD=强密码
+DAILY_REMINDER_TOKEN=随机生成的长令牌
 CORS_ALLOWED_ORIGINS=先填前端 Hosting 地址
 TIMEZONE=Asia/Shanghai
 ```
@@ -54,6 +55,12 @@ curl https://你的 API 地址/healthz
 ```
 
 应返回健康状态 JSON。
+
+企业微信定时任务可读取以下纯文本 URL。将 `DAILY_REMINDER_TOKEN` 替换为上一步配置的实际值，勿将完整 URL 泄露或提交到 Git：
+
+```text
+https://你的 API 地址/api/v1/integrations/wecom/daily-reminder?token=DAILY_REMINDER_TOKEN
+```
 
 ## 3. 构建并发布前端
 

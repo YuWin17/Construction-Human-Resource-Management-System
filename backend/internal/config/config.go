@@ -21,6 +21,7 @@ type Config struct {
 	CORSAllowedOrigins   []string
 	InitialAdminUsername string
 	InitialAdminPassword string
+	DailyReminderToken   string
 	Timezone             string
 }
 
@@ -43,6 +44,7 @@ func Load() (Config, error) {
 		CORSAllowedOrigins:   splitCSV(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")),
 		InitialAdminUsername: getEnv("INITIAL_ADMIN_USERNAME", ""),
 		InitialAdminPassword: getEnv("INITIAL_ADMIN_PASSWORD", ""),
+		DailyReminderToken:   getEnv("DAILY_REMINDER_TOKEN", ""),
 		Timezone:             getEnv("TIMEZONE", "Asia/Shanghai"),
 	}
 

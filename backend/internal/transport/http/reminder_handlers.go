@@ -2,9 +2,33 @@ package httpapi
 
 import (
 	"construction-hrms/backend/internal/domain"
+	"construction-hrms/backend/internal/service"
+	"crypto/subtle"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
+
+func (h *Handler) DailyReminderMessage(c *gin.Context) {
+	if h.dailyReminderToken == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(c.Query("token")), []byte(h.dailyReminderToken)) != 1 {
+		RespondError(c, http.StatusUnauthorized, "INVALID_REMINDER_TOKEN", "提醒任务令牌无效")
+		return
+	}
+	if h.reminders == nil {
+		RespondError(c, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "提醒服务尚未配置")
+		return
+	}
+	items, err := h.reminders.List(c, "pending")
+	if err != nil {
+		RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "查询提醒失败")
+		return
+	}
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(service.DailyReminderMessage(items, time.Now())))
+}
 
 func (h *Handler) ListReminders(c *gin.Context) {
 	if h.reminders == nil {

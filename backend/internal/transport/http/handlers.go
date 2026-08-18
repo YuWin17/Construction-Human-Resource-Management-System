@@ -10,10 +10,11 @@ import (
 
 // Handler gathers dependencies used by HTTP endpoint methods.
 type Handler struct {
-	auth      *service.AuthService
-	talents   *service.TalentService
-	contracts *service.ContractService
-	reminders *service.ReminderService
+	auth               *service.AuthService
+	talents            *service.TalentService
+	contracts          *service.ContractService
+	reminders          *service.ReminderService
+	dailyReminderToken string
 }
 
 func NewHandler(auth *service.AuthService, talents *service.TalentService, contracts *service.ContractService, reminders *service.ReminderService) *Handler {
