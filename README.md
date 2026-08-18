@@ -50,6 +50,10 @@ npm run typecheck
 npm run build
 ```
 
+## 腾讯云 CloudBase 部署
+
+CloudBase Hosting + CloudBase Run 的部署步骤见 [docs/cloudbase-deploy.md](docs/cloudbase-deploy.md)。当前后端使用 SQLite，CloudBase Run 本地磁盘不保证持久化，正式长期使用前应迁移到托管数据库。
+
 ## 受限缓存环境
 
 若 Go 或 npm 因用户目录缓存不可写而失败，可将缓存限制在项目目录内：
