@@ -16,26 +16,42 @@ type talentListItem struct {
 	Code                   string             `json:"code"`
 	Name                   string             `json:"name"`
 	IDCardNumber           string             `json:"id_card_number"`
+	Gender                 string             `json:"gender"`
+	BirthDate              string             `json:"birth_date"`
 	Phone                  string             `json:"phone"`
 	SocialInsuranceStatus  string             `json:"social_insurance_status"`
+	NativePlace            string             `json:"native_place"`
+	CurrentLocation        string             `json:"current_location"`
+	Education              string             `json:"education"`
 	PrimaryCertificate     string             `json:"primary_certificate"`
 	Major                  string             `json:"major"`
+	YearsOfExperience      *int               `json:"years_of_experience"`
 	Compensation           string             `json:"compensation"`
 	BIExpiresOn            string             `json:"bi_expires_on"`
 	CertificateExpiresOn   string             `json:"certificate_expires_on"`
 	CertificateRenewalNote string             `json:"certificate_renewal_note"`
 	Certificate            *certificateOption `json:"certificate"`
+	Note                   string             `json:"note"`
 	SigningStatus          string             `json:"signing_status"`
 	MatchStatus            string             `json:"match_status"`
 	Status                 string             `json:"status"`
-	CurrentLocation        string             `json:"current_location"`
+	CreatedAt              string             `json:"created_at"`
 	UpdatedAt              string             `json:"updated_at"`
 }
 
 type certificateOption struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Specialty string `json:"specialty"`
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Category           string `json:"category"`
+	Specialty          string `json:"specialty"`
+	CertificateNumber  string `json:"certificate_number"`
+	Issuer             string `json:"issuer"`
+	IssuedDate         string `json:"issued_date"`
+	ExpiresOn          string `json:"expires_on"`
+	RegistrationStatus string `json:"registration_status"`
+	RegisteredCompany  string `json:"registered_company"`
+	IsAvailable        bool   `json:"is_available"`
+	Note               string `json:"note"`
 }
 
 type certificateResponse struct {
@@ -73,8 +89,6 @@ type talentDetailResponse struct {
 	Compensation           string               `json:"compensation"`
 	BIExpiresOn            string               `json:"bi_expires_on"`
 	CertificateRenewalNote string               `json:"certificate_renewal_note"`
-	CooperationIntentions  []string             `json:"cooperation_intentions"`
-	ExpectedLocations      []string             `json:"expected_locations"`
 	Note                   string               `json:"note"`
 	Status                 string               `json:"status"`
 	SigningStatus          string               `json:"signing_status"`
@@ -128,12 +142,23 @@ func (h *Handler) Dashboard(c *gin.Context) {
 		recent = append(recent, talentListDTO(talent, talentDeliveryStatus{}))
 	}
 	pendingReminderTotal := 0
+	companyTotal := int64(0)
+	deliveryOrderTotal := int64(0)
 	if h.reminders != nil {
+		db := h.reminders.DB().WithContext(c)
+		if err := db.Model(&domain.Company{}).Count(&companyTotal).Error; err != nil {
+			RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "查询企业总数失败")
+			return
+		}
+		if err := db.Model(&domain.DeliveryOrder{}).Count(&deliveryOrderTotal).Error; err != nil {
+			RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "查询送证单总数失败")
+			return
+		}
 		if reminders, reminderErr := h.reminders.List(c, "pending"); reminderErr == nil {
 			pendingReminderTotal = len(reminders)
 		}
 	}
-	RespondData(c, http.StatusOK, gin.H{"talent_total": overview.TalentTotal, "active_talent_total": overview.ActiveTalentTotal, "signed_talent_total": 0, "unsigned_talent_total": overview.TalentTotal, "certificate_total": overview.CertificateTotal, "pending_reminder_total": pendingReminderTotal, "recent_talents": recent})
+	RespondData(c, http.StatusOK, gin.H{"talent_total": overview.TalentTotal, "active_talent_total": overview.ActiveTalentTotal, "signed_talent_total": 0, "unsigned_talent_total": overview.TalentTotal, "certificate_total": overview.CertificateTotal, "company_total": companyTotal, "delivery_order_total": deliveryOrderTotal, "pending_reminder_total": pendingReminderTotal, "recent_talents": recent})
 }
 
 func (h *Handler) GetTalent(c *gin.Context) {
@@ -316,7 +341,7 @@ func talentListDTO(t domain.Talent, deliveryStatus talentDeliveryStatus) talentL
 	certificateExpiresOn := ""
 	var certificate *certificateOption
 	if t.Certificate != nil {
-		certificate = &certificateOption{ID: t.Certificate.ID, Name: t.Certificate.CertificateNameSnapshot, Specialty: t.Certificate.Specialty}
+		certificate = &certificateOption{ID: t.Certificate.ID, Name: t.Certificate.CertificateNameSnapshot, Category: t.Certificate.Category, Specialty: t.Certificate.Specialty, CertificateNumber: t.Certificate.CertificateNumber, Issuer: t.Certificate.Issuer, IssuedDate: t.Certificate.IssuedDate, ExpiresOn: t.Certificate.ExpiresOn, RegistrationStatus: t.Certificate.RegistrationStatus, RegisteredCompany: t.Certificate.RegisteredCompany, IsAvailable: t.Certificate.IsAvailable, Note: t.Certificate.Note}
 		certificateExpiresOn = t.Certificate.ExpiresOn
 	}
 	signingStatus := deliveryStatus.SigningStatus
@@ -327,7 +352,7 @@ func talentListDTO(t domain.Talent, deliveryStatus talentDeliveryStatus) talentL
 	if deliveryStatus.Matched {
 		matchStatus = "matched"
 	}
-	return talentListItem{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: maskIDCard(t.IDCardNumber), Phone: maskPhone(t.Phone), SocialInsuranceStatus: t.SocialInsuranceStatus, PrimaryCertificate: t.PrimaryCertificate, Major: t.Major, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateExpiresOn: certificateExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, Certificate: certificate, SigningStatus: signingStatus, MatchStatus: matchStatus, Status: t.Status, CurrentLocation: t.CurrentLocation, UpdatedAt: t.UpdatedAt.Format(timeLayout)}
+	return talentListItem{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: t.IDCardNumber, Gender: t.Gender, BirthDate: t.BirthDate, Phone: t.Phone, SocialInsuranceStatus: t.SocialInsuranceStatus, NativePlace: t.NativePlace, CurrentLocation: t.CurrentLocation, Education: t.Education, PrimaryCertificate: t.PrimaryCertificate, Major: t.Major, YearsOfExperience: t.YearsOfExperience, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateExpiresOn: certificateExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, Certificate: certificate, Note: t.Note, SigningStatus: signingStatus, MatchStatus: matchStatus, Status: t.Status, CreatedAt: t.CreatedAt.Format(timeLayout), UpdatedAt: t.UpdatedAt.Format(timeLayout)}
 }
 
 func (h *Handler) certificateSigningStatuses(c *gin.Context, talentID string) map[string]string {
@@ -373,7 +398,7 @@ func talentDetailDTO(t domain.Talent, certificateSigningStatuses map[string]stri
 		value := certificateDTO(*t.Certificate, certificateSigningStatuses[t.Certificate.ID])
 		certificate = &value
 	}
-	return talentDetailResponse{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: t.IDCardNumber, Gender: t.Gender, BirthDate: t.BirthDate, Phone: t.Phone, SocialInsuranceStatus: t.SocialInsuranceStatus, NativePlace: t.NativePlace, CurrentLocation: t.CurrentLocation, Education: t.Education, Major: t.Major, YearsOfExperience: t.YearsOfExperience, PrimaryCertificate: t.PrimaryCertificate, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, CooperationIntentions: t.CooperationIntentions, ExpectedLocations: t.ExpectedLocations, Note: t.Note, Status: t.Status, SigningStatus: signingStatus, Certificate: certificate, CreatedAt: t.CreatedAt.Format(timeLayout), UpdatedAt: t.UpdatedAt.Format(timeLayout)}
+	return talentDetailResponse{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: t.IDCardNumber, Gender: t.Gender, BirthDate: t.BirthDate, Phone: t.Phone, SocialInsuranceStatus: t.SocialInsuranceStatus, NativePlace: t.NativePlace, CurrentLocation: t.CurrentLocation, Education: t.Education, Major: t.Major, YearsOfExperience: t.YearsOfExperience, PrimaryCertificate: t.PrimaryCertificate, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, Note: t.Note, Status: t.Status, SigningStatus: signingStatus, Certificate: certificate, CreatedAt: t.CreatedAt.Format(timeLayout), UpdatedAt: t.UpdatedAt.Format(timeLayout)}
 }
 
 const timeLayout = "2006-01-02 15:04"

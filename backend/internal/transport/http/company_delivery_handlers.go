@@ -59,6 +59,7 @@ func validateDeliveryOrderInput(in deliveryOrderInput) (string, bool) {
 }
 
 func (h *Handler) validateDeliveryOrderReferences(tx *gorm.DB, in deliveryOrderInput) error {
+	// 在调用方事务内校验全部外键，防止送证单引用不属于所选人才的证书。
 	var company domain.Company
 	if err := tx.First(&company, "id = ?", in.CompanyID).Error; err != nil {
 		return err
@@ -77,6 +78,7 @@ func (h *Handler) validateDeliveryOrderReferences(tx *gorm.DB, in deliveryOrderI
 }
 
 func setDeliveryOrderTotals(order *domain.DeliveryOrder, talents []domain.DeliveryOrderTalent) {
+	// 汇总金额由明细行计算，不能信任请求体传入的汇总值。
 	order.PerformanceTotal = 0
 	order.ReceivedTotal = 0
 	order.PaidTotal = 0
@@ -90,6 +92,7 @@ func setDeliveryOrderTotals(order *domain.DeliveryOrder, talents []domain.Delive
 }
 
 func setDeliveryOrderStatus(order *domain.DeliveryOrder) {
+	// 状态由签署到期日推导，不是可独立编辑的字段。
 	if order.ContractExpiresOn == "" {
 		order.Status = deliveryOrderStatusPending
 		return
@@ -107,7 +110,7 @@ func (h *Handler) expireDeliveryOrders(c *gin.Context) {
 	}
 	db := h.reminders.DB().WithContext(c)
 	today := time.Now().Format("2006-01-02")
-	// Contract state is derived entirely from the signing expiry date.
+	// 每次读取前同步日期推导的状态，保证列表和筛选结果一致。
 	db.Model(&domain.DeliveryOrder{}).Where("contract_expires_on = '' AND status <> ?", deliveryOrderStatusPending).Update("status", deliveryOrderStatusPending)
 	db.Model(&domain.DeliveryOrder{}).Where("contract_expires_on <> '' AND contract_expires_on >= ? AND status <> ?", today, deliveryOrderStatusSigned).Update("status", deliveryOrderStatusSigned)
 	db.Model(&domain.DeliveryOrder{}).Where("contract_expires_on <> '' AND contract_expires_on < ? AND status <> ?", today, deliveryOrderStatusExpired).Update("status", deliveryOrderStatusExpired)
@@ -161,6 +164,7 @@ func (h *Handler) ListCompanies(c *gin.Context) {
 		RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "查询企业列表失败")
 		return
 	}
+	// 匹配状态由是否存在送证单推导，不持久化在企业记录中。
 	companyIDs := make([]string, 0, len(rows))
 	for _, company := range rows {
 		companyIDs = append(companyIDs, company.ID)
@@ -231,6 +235,7 @@ func (h *Handler) UpdateCompany(c *gin.Context) {
 		if err := tx.Where("company_id = ?", company.ID).Delete(&domain.CompanyRequirement{}).Error; err != nil {
 			return err
 		}
+		// 企业仅保留一条当前需求，因此在事务内原子替换旧记录。
 		requirement := in.Requirements[0]
 		requirement.ID = ""
 		requirement.CompanyID = company.ID
@@ -312,6 +317,7 @@ func (h *Handler) UploadCompanyContractAttachment(c *gin.Context) {
 		RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "创建附件目录失败")
 		return
 	}
+	// 使用生成的文件名保存附件，避免同名原文件互相覆盖。
 	relativePath := filepath.Join(directory, uuid.NewString()+strings.ToLower(filepath.Ext(file.Filename)))
 	if err := c.SaveUploadedFile(file, relativePath); err != nil {
 		RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "上传合同附件失败")
@@ -355,7 +361,26 @@ func (h *Handler) ListDeliveryOrders(c *gin.Context) {
 	if talentID := strings.TrimSpace(c.Query("talent_id")); talentID != "" {
 		q = q.Joins("JOIN delivery_order_talents ON delivery_order_talents.delivery_order_id = delivery_orders.id").Where("delivery_order_talents.talent_id = ?", talentID)
 	}
-	q.Find(&rows)
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		pattern := "%" + keyword + "%"
+		q = q.Where("delivery_orders.code LIKE ? OR delivery_orders.registration_unit_name LIKE ? OR EXISTS (SELECT 1 FROM delivery_order_talents JOIN talents ON talents.id = delivery_order_talents.talent_id WHERE delivery_order_talents.delivery_order_id = delivery_orders.id AND talents.name LIKE ?)", pattern, pattern, pattern)
+	}
+	if companyID := strings.TrimSpace(c.Query("company_id")); companyID != "" {
+		q = q.Where("delivery_orders.company_id = ?", companyID)
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		q = q.Where("delivery_orders.status = ?", status)
+	}
+	if expiresFrom := strings.TrimSpace(c.Query("contract_expires_from")); expiresFrom != "" {
+		q = q.Where("delivery_orders.contract_expires_on >= ?", expiresFrom)
+	}
+	if expiresTo := strings.TrimSpace(c.Query("contract_expires_to")); expiresTo != "" {
+		q = q.Where("delivery_orders.contract_expires_on <= ?", expiresTo)
+	}
+	if err := q.Find(&rows).Error; err != nil {
+		RespondError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "查询送证单失败")
+		return
+	}
 	RespondData(c, 200, rows)
 }
 func (h *Handler) CreateDeliveryOrder(c *gin.Context) {
@@ -371,6 +396,7 @@ func (h *Handler) CreateDeliveryOrder(c *gin.Context) {
 	order := domain.DeliveryOrder{Code: "SZ" + time.Now().Format("20060102150405"), CompanyID: in.CompanyID, RegistrationUnitName: in.RegistrationUnitName, UnitNature: in.UnitNature, ContractExpiresOn: in.ContractExpiresOn, Note: in.Note}
 	setDeliveryOrderStatus(&order)
 	setDeliveryOrderTotals(&order, in.Talents)
+	// 单据头、人才明细和操作日志构成一次完整业务操作。
 	tx := h.reminders.DB().WithContext(c).Begin()
 	if err := h.validateDeliveryOrderReferences(tx, in); err != nil {
 		tx.Rollback()
@@ -434,6 +460,7 @@ func (h *Handler) UpdateDeliveryOrder(c *gin.Context) {
 		RespondError(c, 500, "INTERNAL_ERROR", "更新送证单失败")
 		return
 	}
+	// 提交的明细集合即为最终状态，因此在同一事务内整体替换。
 	if err := tx.Where("delivery_order_id = ?", order.ID).Delete(&domain.DeliveryOrderTalent{}).Error; err != nil {
 		tx.Rollback()
 		RespondError(c, 500, "INTERNAL_ERROR", "更新送证单人才明细失败")

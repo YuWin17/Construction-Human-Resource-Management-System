@@ -24,6 +24,7 @@ function toPayload(values: FormValues): TalentInput {
     birth_date: birth_date?.format('YYYY-MM-DD'),
     bi_expires_on: bi_expires_on?.format('YYYY-MM-DD'),
     primary_certificate: formattedCertificate?.name || input.primary_certificate || '',
+    status: input.status ?? 'active',
     certificate: formattedCertificate,
   }
 }
@@ -39,7 +40,7 @@ export function TalentFormPage() {
     mutationFn: async (values: FormValues) => {
       return editing ? updateTalent(id!, toPayload(values)) : createTalent(toPayload(values))
     },
-    onSuccess: async (talent) => { await Promise.all([queryClient.invalidateQueries({ queryKey: ['talent', talent.id] }), queryClient.invalidateQueries({ queryKey: ['talents'] })]); message.success(editing ? '人才档案及证书已更新' : '人才档案已创建'); navigate(`/talents/${talent.id}`) },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['talents'] }); message.success(editing ? '人才档案及证书已更新' : '人才档案已创建'); navigate('/talents') },
     onError: (error: any) => message.error(error.response?.data?.error?.message ?? '保存失败，请检查填写内容'),
   })
 
@@ -59,10 +60,10 @@ export function TalentFormPage() {
 
   return <section className="module-page">
     <div className="page-heading compact-heading">
-      <div><Button type="link" icon={<ArrowLeft size={16} />} onClick={() => navigate(editing ? `/talents/${id}` : '/talents')}>返回人才管理</Button><Typography.Title level={2}>{editing ? '编辑人才' : '新增人才'}</Typography.Title></div>
+      <div><Button type="link" icon={<ArrowLeft size={16} />} onClick={() => navigate('/talents')}>返回人才证书</Button><Typography.Title level={2}>{editing ? '编辑人才' : '新增人才'}</Typography.Title></div>
     </div>
     <Card className="form-card" loading={detailQuery.isLoading}>
-      <Form form={form} layout="vertical" initialValues={{ gender: 'unknown' }} onFinish={(values) => mutation.mutate(values)}>
+      <Form form={form} layout="vertical" initialValues={{ gender: 'unknown' }} scrollToFirstError={{ behavior: 'smooth', block: 'center', focus: true }} onFinish={(values) => mutation.mutate(values)} onFinishFailed={({ errorFields }) => { const firstError = errorFields[0]; if (firstError) message.warning(firstError.errors[0] ?? '请完善必填项') }}>
         <Typography.Title level={4}>基本资料</Typography.Title>
         <Row gutter={20}>
           <Col xs={24} md={8}><Form.Item name="name" label="姓名" rules={[{ required: true, min: 2, max: 50, message: '请输入 2 至 50 个字符的姓名' }]}><Input placeholder="请输入姓名" /></Form.Item></Col>
@@ -78,8 +79,6 @@ export function TalentFormPage() {
           <Col xs={24} md={8}><Form.Item name="years_of_experience" label="从业年限"><InputNumber className="full-width" min={0} precision={0} addonAfter="年" /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name="compensation" label="薪资年限"><Input placeholder="如 2500/年" /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name="bi_expires_on" label="BI 到期时间"><DatePicker className="full-width" /></Form.Item></Col>
-          <Col xs={24} md={12}><Form.Item name="cooperation_intentions" label="求职/合作意向"><Select mode="multiple" options={['全职', '兼职', '证书挂靠', '项目合作', '其他'].map((value) => ({ value }))} /></Form.Item></Col>
-          <Col xs={24} md={12}><Form.Item name="expected_locations" label="期望地区"><Select mode="tags" placeholder="输入地区后按回车添加" /></Form.Item></Col>
           <Col span={24}><Form.Item name="certificate_renewal_note" label="相关证书的续签"><Input.TextArea rows={2} maxLength={500} showCount placeholder="填写相关证书的续签安排或说明" /></Form.Item></Col>
           <Col span={24}><Form.Item name="note" label="备注" rules={[{ max: 1000, message: '备注不能超过 1000 个字符' }]}><Input.TextArea rows={3} placeholder="补充说明" showCount maxLength={1000} /></Form.Item></Col>
         </Row>
@@ -96,7 +95,7 @@ export function TalentFormPage() {
           <Col xs={24} md={8}><Form.Item name={['certificate', 'is_available']} label="可用状态" valuePropName="checked" initialValue><Switch checkedChildren="可用" unCheckedChildren="不可用" /></Form.Item></Col>
           <Col xs={24} md={16}><Form.Item name={['certificate', 'note']} label="证书备注"><Input.TextArea rows={2} maxLength={500} showCount /></Form.Item></Col>
         </Row>
-        <div className="form-actions"><Space><Button onClick={() => navigate(editing ? `/talents/${id}` : '/talents')}>取消</Button><Button type="primary" htmlType="submit" icon={<Save size={16} />} loading={mutation.isPending}>保存人才档案</Button></Space></div>
+        <div className="form-actions"><Space><Button onClick={() => navigate('/talents')}>取消</Button><Button type="primary" htmlType="submit" icon={<Save size={16} />} loading={mutation.isPending}>保存人才档案</Button></Space></div>
       </Form>
     </Card>
   </section>

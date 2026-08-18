@@ -27,6 +27,7 @@ export function CompaniesPage() {
       const response = id ? await apiClient.put(`/companies/${id}`, payload) : await apiClient.post('/companies', payload)
       const saved = response.data.data
       if (attachment) {
+        // 附件必须关联已有企业，因此先保存企业记录以取得其 ID。
         const attachmentPayload = new FormData()
         attachmentPayload.append('file', attachment)
         await apiClient.post(`/companies/${saved.ID}/contract-attachment`, attachmentPayload)
@@ -106,7 +107,7 @@ export function CompaniesPage() {
     <div className="filter-panel"><Form form={searchForm} layout="inline" onFinish={(values) => setFilters({ keyword: values.keyword?.trim() || undefined })}><Form.Item name="keyword"><Input allowClear prefix={<Search size={16} />} placeholder="客户名称或需求证书" /></Form.Item><Form.Item><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { searchForm.resetFields(); setFilters({}) }}>重置</Button></Space></Form.Item></Form></div>
     <Card className="detail-card"><Table className="data-table" rowKey="ID" loading={companies.isLoading} dataSource={companies.data ?? []} columns={columns} scroll={{ x: 1750 }} /></Card>
     <Modal width={760} open={open} destroyOnHidden title={editingCompany ? '编辑企业' : '新增企业'} okText="保存" cancelText="取消" confirmLoading={save.isPending} onCancel={closeModal} onOk={() => form.submit()}>
-      <Form form={form} layout="vertical" onFinish={(values) => save.mutate({ values, id: editingCompany?.ID })}>
+      <Form form={form} layout="vertical" scrollToFirstError={{ behavior: 'smooth', block: 'center', focus: true }} onFinish={(values) => save.mutate({ values, id: editingCompany?.ID })} onFinishFailed={({ errorFields }) => { const firstError = errorFields[0]; if (firstError) message.warning(firstError.errors[0] ?? '请完善必填项') }}>
         <Row gutter={16}>
           <Col xs={24} md={12}><Form.Item name="name" label="客户名称" rules={[{ required: true, message: '请输入客户名称' }]}><Input /></Form.Item></Col>
           <Col xs={24} md={12}><Form.Item name="contact_name" label="联系人"><Input /></Form.Item></Col>

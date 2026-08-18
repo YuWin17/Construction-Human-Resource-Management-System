@@ -1,4 +1,4 @@
-// Package domain holds business entities shared by the service layer.
+// Package domain 定义服务层共享的业务实体。
 package domain
 
 import (
@@ -8,8 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Admin is the currently supported system user. The schema allows more
-// administrators later even though the first release initializes one account.
+// Admin 表示当前支持的系统用户。首版仅初始化一个账号，但表结构支持后续扩展多个管理员。
 type Admin struct {
 	ID           string    `gorm:"primaryKey;size:36"`
 	Username     string    `gorm:"uniqueIndex;not null;size:64"`
@@ -18,8 +17,7 @@ type Admin struct {
 	UpdatedAt    time.Time `gorm:"not null"`
 }
 
-// BeforeCreate assigns UUID values inside the application so SQLite and
-// PostgreSQL can use the same model without database-specific UUID functions.
+// BeforeCreate 在应用层生成 UUID，使 SQLite 与 PostgreSQL 无需依赖各自的 UUID 函数。
 func (a *Admin) BeforeCreate(_ *gorm.DB) error {
 	if a.ID == "" {
 		a.ID = uuid.NewString()

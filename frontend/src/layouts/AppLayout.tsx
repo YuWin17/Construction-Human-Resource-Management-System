@@ -16,7 +16,7 @@ const { Header, Sider, Content } = Layout
 
 const navigationItems = [
   { key: '/dashboard', icon: <LayoutDashboard size={18} />, label: '仪表盘' },
-  { key: '/talents', icon: <Users size={18} />, label: '人才管理' },
+  { key: '/talents', icon: <Users size={18} />, label: '人才证书' },
   { key: '/companies', icon: <Building2 size={18} />, label: '企业库' },
   { key: '/delivery-orders', icon: <Send size={18} />, label: '送证单' },
   { key: '/reminders', icon: <Bell size={18} />, label: '到期提醒' },

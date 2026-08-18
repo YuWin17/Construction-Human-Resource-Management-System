@@ -4,12 +4,11 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { getCurrentAdmin, hasAccessToken } from '../api/auth'
 import { LoginPage } from '../features/auth/LoginPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
-import { TalentDetailPage } from '../features/talents/TalentDetailPage'
 import { TalentFormPage } from '../features/talents/TalentFormPage'
 import { TalentsPage } from '../features/talents/TalentsPage'
 import { AuditLogsPage, RemindersPage, SettingsPage } from '../features/operations/OperationsPages'
-import { CompaniesPage } from '../features/v2/V2Pages'
-import { DeliveryOrdersPage } from '../features/v2/DeliveryOrdersPage'
+import { CompaniesPage } from '../features/companies/CompaniesPage'
+import { DeliveryOrdersPage } from '../features/delivery-orders/DeliveryOrdersPage'
 import { AppLayout } from '../layouts/AppLayout'
 
 function ProtectedLayout() {
@@ -48,8 +47,8 @@ export function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/talents" element={<TalentsPage />} />
         <Route path="/talents/new" element={<TalentFormPage />} />
-        <Route path="/talents/:id" element={<TalentDetailPage />} />
         <Route path="/talents/:id/edit" element={<TalentFormPage />} />
+        <Route path="/talents/:id" element={<Navigate to="/talents" replace />} />
         <Route path="/companies" element={<CompaniesPage />} />
         <Route path="/delivery-orders" element={<DeliveryOrdersPage />} />
         <Route path="/reminders" element={<RemindersPage />} />

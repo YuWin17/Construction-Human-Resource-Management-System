@@ -9,8 +9,7 @@ import (
 	"log/slog"
 )
 
-// NewRouter creates the stage-A route tree. Business endpoints remain explicit
-// placeholders so the frontend can establish protected navigation now.
+// NewRouter 构建完整 API 路由，并注入认证和受保护资源接口所需的业务服务。
 func NewRouter(cfg config.Config, logger *slog.Logger, auth *service.AuthService, services ...any) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -36,9 +35,11 @@ func NewRouter(cfg config.Config, logger *slog.Logger, auth *service.AuthService
 	}
 	handler := NewHandler(auth, talentService, contractService, reminderService)
 	handler.dailyReminderToken = cfg.DailyReminderToken
+	// 公共接口仅包含登录和带任务令牌保护的每日提醒文本。
 	api.POST("/auth/login", handler.Login)
 	api.GET("/integrations/wecom/daily-reminder", handler.DailyReminderMessage)
 
+	// 所有业务资源均要求有效的管理员 JWT。
 	protected := api.Group("")
 	protected.Use(RequireAuth(auth))
 	protected.POST("/auth/logout", handler.Logout)

@@ -1,4 +1,4 @@
-// Package repository contains database access implementations.
+// Package repository 提供数据库访问实现。
 package repository
 
 import (
@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AdminRepository isolates admin database operations from authentication logic.
+// AdminRepository 将管理员数据库操作与认证逻辑隔离。
 type AdminRepository struct {
 	db *gorm.DB
 }

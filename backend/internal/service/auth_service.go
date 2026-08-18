@@ -1,4 +1,4 @@
-// Package service contains application business logic.
+// Package service 包含应用业务逻辑。
 package service
 
 import (
@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	// ErrInvalidCredentials intentionally does not reveal whether an account exists.
+	// ErrInvalidCredentials 不暴露账号是否存在，避免泄露认证信息。
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidToken       = errors.New("invalid token")
 )
 
-// AuthService manages administrator initialization, login, and token validation.
+// AuthService 管理管理员初始化、登录和令牌校验。
 type AuthService struct {
 	admins    *repository.AdminRepository
 	jwtSecret []byte
@@ -35,7 +35,7 @@ func NewAuthService(admins *repository.AdminRepository, jwtSecret string, jwtTTL
 	}
 }
 
-// EnsureInitialAdmin creates the first account only when the table is empty.
+// EnsureInitialAdmin 仅在管理员表为空时创建首个账号。
 func (s *AuthService) EnsureInitialAdmin(ctx context.Context, username, password string) error {
 	hasAny, err := s.admins.HasAny(ctx)
 	if err != nil {
@@ -62,7 +62,7 @@ func (s *AuthService) EnsureInitialAdmin(ctx context.Context, username, password
 	return nil
 }
 
-// Login verifies credentials and issues a short-lived signed access token.
+// Login 校验凭据并签发短期访问令牌。
 func (s *AuthService) Login(ctx context.Context, username, password string) (string, domain.Admin, error) {
 	admin, err := s.admins.FindByUsername(ctx, strings.TrimSpace(username))
 	if err != nil || bcrypt.CompareHashAndPassword([]byte(admin.PasswordHash), []byte(password)) != nil {
@@ -83,7 +83,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	return signed, admin, nil
 }
 
-// CurrentAdmin resolves a signed token to its current administrator record.
+// CurrentAdmin 将已签名令牌解析为当前管理员记录。
 func (s *AuthService) CurrentAdmin(ctx context.Context, rawToken string) (domain.Admin, error) {
 	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(rawToken, claims, func(token *jwt.Token) (any, error) {

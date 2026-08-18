@@ -10,6 +10,7 @@ import (
 )
 
 func (h *Handler) DailyReminderMessage(c *gin.Context) {
+	// 此接口固定返回纯文本，企业微信定时任务可直接获取，无需解析应用 JSON 包装结构。
 	if h.dailyReminderToken == "" {
 		c.Status(http.StatusNotFound)
 		return
@@ -66,6 +67,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	RespondData(c, 200, gin.H{"contract_reminder_days": a, "certificate_reminder_days": b})
 }
 func (h *Handler) UpdateSettings(c *gin.Context) {
+	// 服务层会再次校验设置，使非 HTTP 调用方也遵守相同的范围限制。
 	var in struct {
 		ContractReminderDays    int `json:"contract_reminder_days"`
 		CertificateReminderDays int `json:"certificate_reminder_days"`

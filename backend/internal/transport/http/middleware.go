@@ -14,7 +14,7 @@ import (
 
 const adminContextKey = "current_admin"
 
-// RequestLogger adds a request ID and records concise request completion data.
+// RequestLogger 添加请求 ID 并记录简要的请求完成信息。
 func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader("X-Request-ID")
@@ -37,7 +37,7 @@ func RequestLogger(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
-// CORS permits configured browser origins and handles preflight requests.
+// CORS 放行配置的浏览器来源并处理预检请求。
 func CORS(allowedOrigins []string) gin.HandlerFunc {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
@@ -61,7 +61,7 @@ func CORS(allowedOrigins []string) gin.HandlerFunc {
 	}
 }
 
-// RequireAuth verifies a bearer token and attaches the administrator to context.
+// RequireAuth 校验 Bearer 令牌并将管理员写入请求上下文。
 func RequireAuth(auth *service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authorization := c.GetHeader("Authorization")
@@ -83,7 +83,7 @@ func RequireAuth(auth *service.AuthService) gin.HandlerFunc {
 	}
 }
 
-// CurrentAdmin returns the authenticated administrator stored by RequireAuth.
+// CurrentAdmin 返回 RequireAuth 写入上下文的已认证管理员。
 func CurrentAdmin(c *gin.Context) (domain.Admin, bool) {
 	value, ok := c.Get(adminContextKey)
 	if !ok {

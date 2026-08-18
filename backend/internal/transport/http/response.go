@@ -1,9 +1,9 @@
-// Package httpapi implements the JSON HTTP transport layer.
+// Package httpapi 实现 JSON HTTP 传输层。
 package httpapi
 
 import "github.com/gin-gonic/gin"
 
-// ErrorDetail identifies a validation field and its human-readable message.
+// ErrorDetail 标识校验字段及其可读错误信息。
 type ErrorDetail struct {
 	Field   string `json:"field"`
 	Message string `json:"message"`
@@ -15,12 +15,12 @@ type errorBody struct {
 	Details []ErrorDetail `json:"details,omitempty"`
 }
 
-// RespondData keeps every successful API response structurally consistent.
+// RespondData 保持所有成功 API 响应的结构一致。
 func RespondData(c *gin.Context, status int, data any) {
 	c.JSON(status, gin.H{"data": data})
 }
 
-// RespondError hides implementation details behind stable API error codes.
+// RespondError 通过稳定的 API 错误码隐藏内部实现细节。
 func RespondError(c *gin.Context, status int, code, message string, details ...ErrorDetail) {
 	c.JSON(status, gin.H{
 		"error": errorBody{

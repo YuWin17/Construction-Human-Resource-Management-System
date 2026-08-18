@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler gathers dependencies used by HTTP endpoint methods.
+// Handler 汇集 HTTP 接口方法需要的业务依赖。
 type Handler struct {
 	auth               *service.AuthService
 	talents            *service.TalentService
@@ -53,7 +53,7 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
-	// JWT is stateless in this first framework stage. The client clears its copy.
+	// JWT 为无状态令牌，退出时由客户端清除本地副本。
 	RespondData(c, http.StatusOK, gin.H{"message": "已退出登录"})
 }
 

@@ -1,4 +1,4 @@
-// Package config loads application settings from environment variables.
+// Package config 从环境变量加载应用配置。
 package config
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config contains runtime settings used by the API service.
+// Config 保存 API 服务运行所需的配置。
 type Config struct {
 	AppEnv               string
 	HTTPAddr             string
@@ -25,8 +25,8 @@ type Config struct {
 	Timezone             string
 }
 
-// Load reads .env when present, then reads environment variables.
-// Real environment variables take precedence over values in .env.
+// Load 在 .env 存在时先读取该文件，再读取环境变量。
+// 环境变量优先于 .env 中的同名配置。
 func Load() (Config, error) {
 	_ = godotenv.Load()
 

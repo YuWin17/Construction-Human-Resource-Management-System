@@ -35,8 +35,6 @@ type TalentInput struct {
 	Compensation           string            `json:"compensation"`
 	BIExpiresOn            string            `json:"bi_expires_on"`
 	CertificateRenewalNote string            `json:"certificate_renewal_note"`
-	CooperationIntentions  []string          `json:"cooperation_intentions"`
-	ExpectedLocations      []string          `json:"expected_locations"`
 	Note                   string            `json:"note"`
 	Status                 string            `json:"status"`
 	Certificate            *CertificateInput `json:"certificate"`
@@ -103,6 +101,7 @@ func (s *TalentService) Create(ctx context.Context, input TalentInput, adminID s
 		return domain.Talent{}, ErrValidation
 	}
 	talent := talentFromInput(input)
+	// 人才与其唯一证书必须原子创建，避免出现不完整档案。
 	err := s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		code, err := generateTalentCode(tx)
 		if err != nil {
@@ -127,6 +126,7 @@ func (s *TalentService) Update(ctx context.Context, id string, input TalentInput
 	if err := validateTalentInput(input); err != nil {
 		return domain.Talent{}, err
 	}
+	// 编辑任一部分时，保证人才档案、证书和操作日志保持一致。
 	err := s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var talent domain.Talent
 		if err := tx.First(&talent, "id = ?", id).Error; err != nil {
@@ -271,11 +271,11 @@ func talentFromInput(input TalentInput) domain.Talent {
 	if input.Certificate != nil {
 		primaryCertificate = strings.TrimSpace(input.Certificate.Name)
 	}
-	return domain.Talent{Name: strings.TrimSpace(input.Name), IDCardNumber: strings.ToUpper(strings.TrimSpace(input.IDCardNumber)), Gender: input.Gender, BirthDate: input.BirthDate, Phone: strings.TrimSpace(input.Phone), SocialInsuranceStatus: input.SocialInsuranceStatus, NativePlace: input.NativePlace, CurrentLocation: input.CurrentLocation, Education: input.Education, Major: strings.TrimSpace(input.Major), YearsOfExperience: input.YearsOfExperience, PrimaryCertificate: primaryCertificate, Compensation: strings.TrimSpace(input.Compensation), BIExpiresOn: strings.TrimSpace(input.BIExpiresOn), CertificateRenewalNote: strings.TrimSpace(input.CertificateRenewalNote), CooperationIntentions: input.CooperationIntentions, ExpectedLocations: input.ExpectedLocations, Note: input.Note, Status: status}
+	return domain.Talent{Name: strings.TrimSpace(input.Name), IDCardNumber: strings.ToUpper(strings.TrimSpace(input.IDCardNumber)), Gender: input.Gender, BirthDate: input.BirthDate, Phone: strings.TrimSpace(input.Phone), SocialInsuranceStatus: input.SocialInsuranceStatus, NativePlace: input.NativePlace, CurrentLocation: input.CurrentLocation, Education: input.Education, Major: strings.TrimSpace(input.Major), YearsOfExperience: input.YearsOfExperience, PrimaryCertificate: primaryCertificate, Compensation: strings.TrimSpace(input.Compensation), BIExpiresOn: strings.TrimSpace(input.BIExpiresOn), CertificateRenewalNote: strings.TrimSpace(input.CertificateRenewalNote), Note: input.Note, Status: status}
 }
 
 func generateTalentCode(tx *gorm.DB) (string, error) {
-	// Match the enterprise-number format: prefix plus yyyyMMddHHmmss.
+	// 编号格式与企业编号一致：前缀加 yyyyMMddHHmmss。
 	for attempt := 0; attempt < 2; attempt++ {
 		code := "RC" + time.Now().Format("20060102150405")
 		var count int64
@@ -285,8 +285,7 @@ func generateTalentCode(tx *gorm.DB) (string, error) {
 		if count == 0 {
 			return code, nil
 		}
-		// The number format has second-level precision, just like enterprise
-		// numbers. Wait for the next second instead of appending a suffix.
+		// 编号仅精确到秒。遇到冲突时等待下一秒，不追加额外后缀。
 		time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
 	}
 	return "", ErrValidation
@@ -304,6 +303,7 @@ func createCertificate(tx *gorm.DB, talentID string, input CertificateInput) (do
 }
 
 func buildCertificate(tx *gorm.DB, talentID string, input CertificateInput) (domain.Certificate, error) {
+	// 证书目录是可复用的名称字典；首次录入时在调用方事务内创建。
 	name := strings.TrimSpace(input.Name)
 	var catalog domain.CertificateCatalog
 	err := tx.Where("name = ?", name).First(&catalog).Error

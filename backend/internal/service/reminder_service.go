@@ -62,6 +62,7 @@ func (s *ReminderService) UpdateSettings(ctx context.Context, contractDays, cert
 	})
 }
 func (s *ReminderService) List(ctx context.Context, status string) ([]ReminderItem, error) {
+	// 从所有到期来源刷新持久化提醒。来源 ID 与提醒类型保证仪表盘加载和定时调用均可幂等执行。
 	cd, xd, err := s.settings(ctx)
 	if err != nil {
 		return nil, err
@@ -101,7 +102,7 @@ func (s *ReminderService) List(ctx context.Context, status string) ([]ReminderIt
 			r = domain.Reminder{ReminderType: kind, SourceID: id, TalentID: tid, DueDate: due, Status: "pending"}
 			s.db.WithContext(ctx).Create(&r)
 		} else if r.DueDate != due {
-			// A changed signing date requires a fresh handling decision.
+			// 来源日期变更后，需要重新判断该提醒是否已处理。
 			r.DueDate = due
 			r.Status = "pending"
 			r.HandledAt = nil
@@ -129,6 +130,7 @@ func (s *ReminderService) List(ctx context.Context, status string) ([]ReminderIt
 		add("certificate_expiry", c.ID, c.TalentID, "", c.CertificateNameSnapshot, c.ExpiresOn, xd)
 	}
 	for _, order := range deliveryOrders {
+		// 送证单提醒包含全部关联人才，确保群通知可直接执行后续操作。
 		names := make([]string, 0, len(order.Talents))
 		for _, item := range order.Talents {
 			if name := tm[item.TalentID]; name != "" {
@@ -148,8 +150,8 @@ func (s *ReminderService) List(ctx context.Context, status string) ([]ReminderIt
 
 const dailyReminderMessageLimit = 50
 
-// DailyReminderMessage produces a concise, non-sensitive text body for an
-// external scheduler to deliver to a chat group.
+// DailyReminderMessage 生成简洁、非敏感的文本消息，供外部定时任务发送至群聊。
+// 输出数量设有上限，避免积压提醒超过聊天平台的单条消息限制。
 func DailyReminderMessage(items []ReminderItem, now time.Time) string {
 	pending := make([]ReminderItem, 0, len(items))
 	for _, item := range items {

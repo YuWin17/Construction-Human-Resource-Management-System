@@ -38,3 +38,30 @@ func TestTalentServiceCreatesAndUpdatesTalentCertificate(t *testing.T) {
 		t.Fatalf("certificate was not updated: %+v", updated.Certificate)
 	}
 }
+
+func TestTalentServiceCreatesCertificateWithExpiryDate(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	if err := db.AutoMigrate(&domain.Talent{}, &domain.CertificateCatalog{}, &domain.Certificate{}, &domain.AuditLog{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	serviceUnderTest := service.NewTalentService(repository.NewTalentRepository(db))
+	talent, err := serviceUnderTest.Create(context.Background(), service.TalentInput{
+		Name:         "测试人员3",
+		IDCardNumber: "444444444444444444",
+		Phone:        "13231332322",
+		Certificate: &service.CertificateInput{
+			Name:      "测试证书4",
+			ExpiresOn: "2026-08-28",
+		},
+	}, "admin-1")
+	if err != nil {
+		t.Fatalf("create talent with certificate expiry date: %v", err)
+	}
+	if talent.Certificate == nil || talent.Certificate.ExpiresOn != "2026-08-28" {
+		t.Fatalf("certificate expiry date was not saved: %+v", talent.Certificate)
+	}
+}

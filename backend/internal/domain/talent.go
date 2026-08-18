@@ -13,8 +13,7 @@ const (
 	TalentStatusArchived  = "archived"
 )
 
-// Talent is the core personnel profile. Sensitive fields are only masked by
-// list DTOs; detail responses intentionally contain the complete values.
+// Talent 是人才档案的核心实体。列表 DTO 会脱敏敏感字段，详情响应保留完整信息。
 type Talent struct {
 	ID                     string `gorm:"primaryKey;size:36"`
 	Code                   string `gorm:"size:64"`
@@ -33,8 +32,6 @@ type Talent struct {
 	Compensation           string       `gorm:"size:64"`
 	BIExpiresOn            string       `gorm:"index;size:10"`
 	CertificateRenewalNote string       `gorm:"type:text"`
-	CooperationIntentions  []string     `gorm:"serializer:json"`
-	ExpectedLocations      []string     `gorm:"serializer:json"`
 	Note                   string       `gorm:"type:text"`
 	Status                 string       `gorm:"index;not null;size:32"`
 	Certificate            *Certificate `gorm:"foreignKey:TalentID"`
