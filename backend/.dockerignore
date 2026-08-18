@@ -1,0 +1,11 @@
+.cache
+.env
+.logs
+data
+storage
+uploads
+bin
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
