@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider } from 'antd'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
+import { HashRouter } from 'react-router-dom'
 import { AppRoutes } from './routes/AppRoutes'
 import './styles/global.css'
 
@@ -28,9 +28,9 @@ createRoot(document.getElementById('root')!).render(
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+        <HashRouter>
           <AppRoutes />
-        </BrowserRouter>
+        </HashRouter>
       </QueryClientProvider>
     </ConfigProvider>
   </StrictMode>,

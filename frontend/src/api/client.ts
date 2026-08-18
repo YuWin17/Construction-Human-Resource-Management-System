@@ -20,8 +20,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       sessionStorage.removeItem(tokenStorageKey)
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login')
+      if (window.location.hash !== '#/login') {
+        window.location.assign('/#/login')
       }
     }
     return Promise.reject(error)
