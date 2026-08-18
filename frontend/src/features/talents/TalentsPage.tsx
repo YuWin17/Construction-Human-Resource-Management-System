@@ -24,7 +24,7 @@ export function TalentsPage() {
     { title: '登记（更新）时间', dataIndex: 'updated_at', width: 165 },
     { title: '人才姓名', dataIndex: 'name', width: 105, fixed: 'left' },
     { title: '联系方式', dataIndex: 'phone', width: 130 },
-    { title: '人才持证执业（职业）', dataIndex: 'primary_certificate', width: 185, render: (value: string, record) => value || record.certificate_names?.[0] || '-' },
+    { title: '人才持证执业（职业）', dataIndex: 'primary_certificate', width: 185, render: (value: string, record) => value || record.certificate?.name || '-' },
     { title: '专业', dataIndex: 'major', width: 135, render: (value: string) => value || '-' },
     { title: '薪资年限', dataIndex: 'compensation', width: 115, render: (value: string) => value || '-' },
     { title: '社保情况', dataIndex: 'social_insurance_status', width: 120, render: (value: string) => value || '-' },

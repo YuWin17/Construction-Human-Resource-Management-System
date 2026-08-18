@@ -1,24 +1,30 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Save } from 'lucide-react'
-import { Button, Card, Col, DatePicker, Divider, Form, Input, InputNumber, Row, Select, Space, Typography, message } from 'antd'
+import { Button, Card, Col, DatePicker, Divider, Form, Input, InputNumber, Row, Select, Space, Switch, Typography, message } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createTalent, getTalent, updateTalent, type CertificateInput, type TalentInput } from '../../api/talents'
 import { CertificateNameSelect } from './CertificateNameSelect'
 
-type FormCertificate = Omit<CertificateInput, 'issued_date' | 'expires_on'> & { issued_date?: dayjs.Dayjs; expires_on?: dayjs.Dayjs }
-type FormValues = Omit<TalentInput, 'birth_date' | 'bi_expires_on' | 'certificates'> & { birth_date?: dayjs.Dayjs; bi_expires_on?: dayjs.Dayjs; certificate?: FormCertificate }
+type FormCertificate = Omit<CertificateInput, 'issued_date' | 'expires_on'> & { id?: string; issued_date?: dayjs.Dayjs; expires_on?: dayjs.Dayjs }
+type FormValues = Omit<TalentInput, 'birth_date' | 'bi_expires_on' | 'certificate'> & { birth_date?: dayjs.Dayjs; bi_expires_on?: dayjs.Dayjs; certificate?: FormCertificate }
 
-function toPayload(values: FormValues, includeCertificate: boolean): TalentInput {
+function toCertificateInput(certificate?: FormCertificate): CertificateInput | undefined {
+  if (!certificate?.name?.trim()) return undefined
+  const { id: _id, issued_date, expires_on, ...input } = certificate
+  return { ...input, name: input.name.trim(), issued_date: issued_date?.format('YYYY-MM-DD'), expires_on: expires_on?.format('YYYY-MM-DD') }
+}
+
+function toPayload(values: FormValues): TalentInput {
   const { birth_date, bi_expires_on, certificate, ...input } = values
-  const formattedCertificate = certificate?.name ? { ...certificate, issued_date: certificate.issued_date?.format('YYYY-MM-DD'), expires_on: certificate.expires_on?.format('YYYY-MM-DD') } : undefined
+  const formattedCertificate = toCertificateInput(certificate)
   return {
     ...input,
     birth_date: birth_date?.format('YYYY-MM-DD'),
     bi_expires_on: bi_expires_on?.format('YYYY-MM-DD'),
-    primary_certificate: input.primary_certificate || formattedCertificate?.name || '',
-    certificates: includeCertificate && formattedCertificate ? [formattedCertificate] : [],
+    primary_certificate: formattedCertificate?.name || input.primary_certificate || '',
+    certificate: formattedCertificate,
   }
 }
 
@@ -26,19 +32,30 @@ export function TalentFormPage() {
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [form] = Form.useForm<FormValues>()
   const detailQuery = useQuery({ queryKey: ['talent', id], queryFn: () => getTalent(id!), enabled: editing })
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => editing ? updateTalent(id!, toPayload(values, false)) : createTalent(toPayload(values, true)),
-    onSuccess: (talent) => { message.success(editing ? '人才档案已更新' : '人才档案已创建'); navigate(`/talents/${talent.id}`) },
+    mutationFn: async (values: FormValues) => {
+      return editing ? updateTalent(id!, toPayload(values)) : createTalent(toPayload(values))
+    },
+    onSuccess: async (talent) => { await Promise.all([queryClient.invalidateQueries({ queryKey: ['talent', talent.id] }), queryClient.invalidateQueries({ queryKey: ['talents'] })]); message.success(editing ? '人才档案及证书已更新' : '人才档案已创建'); navigate(`/talents/${talent.id}`) },
     onError: (error: any) => message.error(error.response?.data?.error?.message ?? '保存失败，请检查填写内容'),
   })
 
   useEffect(() => {
     if (!detailQuery.data) return
     const talent = detailQuery.data
-    form.setFieldsValue({ ...talent, birth_date: talent.birth_date ? dayjs(talent.birth_date) : undefined, bi_expires_on: talent.bi_expires_on ? dayjs(talent.bi_expires_on) : undefined })
+    const certificate = talent.certificate
+    form.setFieldsValue({
+      ...talent,
+      birth_date: talent.birth_date ? dayjs(talent.birth_date) : undefined,
+      bi_expires_on: talent.bi_expires_on ? dayjs(talent.bi_expires_on) : undefined,
+      certificate: certificate ? { ...certificate, issued_date: certificate.issued_date ? dayjs(certificate.issued_date) : undefined, expires_on: certificate.expires_on ? dayjs(certificate.expires_on) : undefined } : undefined,
+    })
   }, [detailQuery.data, form])
+
+  const certificateRequired = !editing || Boolean(detailQuery.data?.certificate)
 
   return <section className="module-page">
     <div className="page-heading compact-heading">
@@ -66,13 +83,19 @@ export function TalentFormPage() {
           <Col span={24}><Form.Item name="certificate_renewal_note" label="相关证书的续签"><Input.TextArea rows={2} maxLength={500} showCount placeholder="填写相关证书的续签安排或说明" /></Form.Item></Col>
           <Col span={24}><Form.Item name="note" label="备注" rules={[{ max: 1000, message: '备注不能超过 1000 个字符' }]}><Input.TextArea rows={3} placeholder="补充说明" showCount maxLength={1000} /></Form.Item></Col>
         </Row>
-        {!editing ? <><Divider /><Typography.Title level={4}>行业证书</Typography.Title><Row gutter={16}>
-          <Col xs={24} md={8}><Form.Item name={['certificate', 'name']} label="证书名称" rules={[{ required: true, message: '请选择证书名称' }]}><CertificateNameSelect /></Form.Item></Col>
+        <Divider /><Typography.Title level={4}>行业证书</Typography.Title><Row gutter={16}>
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'name']} label="证书名称" rules={certificateRequired ? [{ required: true, message: '请选择证书名称' }] : []}><CertificateNameSelect /></Form.Item></Col>
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'category']} label="证书类别"><Input placeholder="如 注册类、职称类" /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name={['certificate', 'certificate_number']} label="证书编号"><Input /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name={['certificate', 'specialty']} label="专业/方向"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'issuer']} label="发证机构"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'issued_date']} label="发证日期"><DatePicker className="full-width" /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name={['certificate', 'expires_on']} label="有效期至"><DatePicker className="full-width" /></Form.Item></Col>
           <Col xs={24} md={8}><Form.Item name={['certificate', 'registration_status']} label="注册状态" initialValue="active"><Select options={[{ value: 'active', label: '有效' }, { value: 'pending', label: '待注册' }, { value: 'registered', label: '已注册' }, { value: 'cancelled', label: '已注销' }, { value: 'expired', label: '已过期' }]} /></Form.Item></Col>
-        </Row></> : null}
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'registered_company']} label="注册单位"><Input /></Form.Item></Col>
+          <Col xs={24} md={8}><Form.Item name={['certificate', 'is_available']} label="可用状态" valuePropName="checked" initialValue><Switch checkedChildren="可用" unCheckedChildren="不可用" /></Form.Item></Col>
+          <Col xs={24} md={16}><Form.Item name={['certificate', 'note']} label="证书备注"><Input.TextArea rows={2} maxLength={500} showCount /></Form.Item></Col>
+        </Row>
         <div className="form-actions"><Space><Button onClick={() => navigate(editing ? `/talents/${id}` : '/talents')}>取消</Button><Button type="primary" htmlType="submit" icon={<Save size={16} />} loading={mutation.isPending}>保存人才档案</Button></Space></div>
       </Form>
     </Card>

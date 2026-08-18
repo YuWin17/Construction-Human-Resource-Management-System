@@ -16,7 +16,7 @@ func (r *TalentRepository) DB() *gorm.DB { return r.db }
 
 func (r *TalentRepository) Find(ctx context.Context, id string) (domain.Talent, error) {
 	var talent domain.Talent
-	err := r.db.WithContext(ctx).Preload("Certificates").First(&talent, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("Certificate").First(&talent, "id = ?", id).Error
 	return talent, err
 }
 
@@ -57,7 +57,7 @@ func (r *TalentRepository) List(ctx context.Context, keyword, status, currentLoc
 	if hasCertificateFilter {
 		query = query.Distinct("talents.*")
 	}
-	err := query.Preload("Certificates").Order("talents.updated_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&talents).Error
+	err := query.Preload("Certificate").Order("talents.updated_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&talents).Error
 	return talents, total, err
 }
 
@@ -94,6 +94,6 @@ func (r *TalentRepository) DashboardCounts(ctx context.Context) (total, active, 
 	if err = base.Model(&domain.Certificate{}).Count(&certificates).Error; err != nil {
 		return
 	}
-	err = base.Preload("Certificates").Order("created_at DESC").Limit(5).Find(&recent).Error
+	err = base.Preload("Certificate").Order("created_at DESC").Limit(5).Find(&recent).Error
 	return
 }

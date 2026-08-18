@@ -86,8 +86,8 @@ export function DeliveryOrdersPage() {
       </Space>,
     },
   ]
-  const talentOptions = (talents.data?.items ?? []).map((talent) => ({ value: talent.id, label: `${talent.name} | ${talent.phone} | ${talent.certificate_names.join('、') || '未录入证书'}` }))
-  const certificateOptionsByTalent = Object.fromEntries((talents.data?.items ?? []).map((talent) => [talent.id, talent.certificate_options.map((certificate) => ({ value: certificate.id, label: certificate.specialty ? `${certificate.name} | ${certificate.specialty}` : certificate.name, specialty: certificate.specialty }))]))
+  const talentOptions = (talents.data?.items ?? []).map((talent) => ({ value: talent.id, label: `${talent.name} | ${talent.phone} | ${talent.certificate?.name || '未录入证书'}` }))
+  const certificateOptionsByTalent = Object.fromEntries((talents.data?.items ?? []).map((talent) => [talent.id, talent.certificate ? [{ value: talent.certificate.id, label: talent.certificate.specialty ? `${talent.certificate.name} | ${talent.certificate.specialty}` : talent.certificate.name, specialty: talent.certificate.specialty }] : []]))
   return <section className="module-page">
     <div className="page-heading"><div><Typography.Title level={2}>送证单</Typography.Title><Typography.Paragraph>记录企业匹配、人才明细与合同签署进度。</Typography.Paragraph></div><Button type="primary" onClick={() => openCreate()}>创建送证单</Button></div>
     <Card><Table rowKey="ID" loading={orders.isLoading} dataSource={orders.data ?? []} columns={columns} scroll={{ x: 1770 }} /></Card>

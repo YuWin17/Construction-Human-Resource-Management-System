@@ -13,34 +13,33 @@ import (
 )
 
 var (
-	ErrTalentNotFound         = errors.New("talent not found")
-	ErrValidation             = errors.New("validation error")
-	ErrTalentCertificateLimit = errors.New("talent certificate limit reached")
-	validIDCard               = regexp.MustCompile(`^\d{17}[\dXx]$`)
-	validPhone                = regexp.MustCompile(`^1[3-9]\d{9}$`)
+	ErrTalentNotFound = errors.New("talent not found")
+	ErrValidation     = errors.New("validation error")
+	validIDCard       = regexp.MustCompile(`^\d{17}[\dXx]$`)
+	validPhone        = regexp.MustCompile(`^1[3-9]\d{9}$`)
 )
 
 type TalentInput struct {
-	Name                   string             `json:"name"`
-	IDCardNumber           string             `json:"id_card_number"`
-	Gender                 string             `json:"gender"`
-	BirthDate              string             `json:"birth_date"`
-	Phone                  string             `json:"phone"`
-	SocialInsuranceStatus  string             `json:"social_insurance_status"`
-	NativePlace            string             `json:"native_place"`
-	CurrentLocation        string             `json:"current_location"`
-	Education              string             `json:"education"`
-	Major                  string             `json:"major"`
-	YearsOfExperience      *int               `json:"years_of_experience"`
-	PrimaryCertificate     string             `json:"primary_certificate"`
-	Compensation           string             `json:"compensation"`
-	BIExpiresOn            string             `json:"bi_expires_on"`
-	CertificateRenewalNote string             `json:"certificate_renewal_note"`
-	CooperationIntentions  []string           `json:"cooperation_intentions"`
-	ExpectedLocations      []string           `json:"expected_locations"`
-	Note                   string             `json:"note"`
-	Status                 string             `json:"status"`
-	Certificates           []CertificateInput `json:"certificates"`
+	Name                   string            `json:"name"`
+	IDCardNumber           string            `json:"id_card_number"`
+	Gender                 string            `json:"gender"`
+	BirthDate              string            `json:"birth_date"`
+	Phone                  string            `json:"phone"`
+	SocialInsuranceStatus  string            `json:"social_insurance_status"`
+	NativePlace            string            `json:"native_place"`
+	CurrentLocation        string            `json:"current_location"`
+	Education              string            `json:"education"`
+	Major                  string            `json:"major"`
+	YearsOfExperience      *int              `json:"years_of_experience"`
+	PrimaryCertificate     string            `json:"primary_certificate"`
+	Compensation           string            `json:"compensation"`
+	BIExpiresOn            string            `json:"bi_expires_on"`
+	CertificateRenewalNote string            `json:"certificate_renewal_note"`
+	CooperationIntentions  []string          `json:"cooperation_intentions"`
+	ExpectedLocations      []string          `json:"expected_locations"`
+	Note                   string            `json:"note"`
+	Status                 string            `json:"status"`
+	Certificate            *CertificateInput `json:"certificate"`
 }
 
 type CertificateInput struct {
@@ -100,7 +99,7 @@ func (s *TalentService) Create(ctx context.Context, input TalentInput, adminID s
 	if err := validateTalentInput(input); err != nil {
 		return domain.Talent{}, err
 	}
-	if len(input.Certificates) != 1 {
+	if input.Certificate == nil {
 		return domain.Talent{}, ErrValidation
 	}
 	talent := talentFromInput(input)
@@ -113,7 +112,7 @@ func (s *TalentService) Create(ctx context.Context, input TalentInput, adminID s
 		if err := tx.Create(&talent).Error; err != nil {
 			return err
 		}
-		if err := createCertificates(tx, talent.ID, input.Certificates); err != nil {
+		if _, err := createCertificate(tx, talent.ID, *input.Certificate); err != nil {
 			return err
 		}
 		return tx.Create(&domain.AuditLog{AdminID: adminID, Action: "talent.created", ResourceType: "talent", ResourceID: talent.ID, DisplayName: talent.Name, Summary: "创建人才档案"}).Error
@@ -141,6 +140,34 @@ func (s *TalentService) Update(ctx context.Context, id string, input TalentInput
 		updated.Code = talent.Code
 		if err := tx.Model(&talent).Updates(&updated).Error; err != nil {
 			return err
+		}
+		if input.Certificate != nil {
+			var certificate domain.Certificate
+			err := tx.Where("talent_id = ?", id).First(&certificate).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				createdCertificate, err := createCertificate(tx, id, *input.Certificate)
+				if err != nil {
+					return err
+				}
+				if err := tx.Create(&domain.AuditLog{AdminID: adminID, Action: "certificate.created", ResourceType: "certificate", ResourceID: createdCertificate.ID, DisplayName: createdCertificate.CertificateNameSnapshot, Summary: "talent:" + id + " 新增证书"}).Error; err != nil {
+					return err
+				}
+			} else {
+				if err != nil {
+					return err
+				}
+				updatedCertificate, err := buildCertificate(tx, id, *input.Certificate)
+				if err != nil {
+					return err
+				}
+				updatedCertificate.ID = certificate.ID
+				if err := tx.Model(&certificate).Updates(&updatedCertificate).Error; err != nil {
+					return err
+				}
+				if err := tx.Create(&domain.AuditLog{AdminID: adminID, Action: "certificate.updated", ResourceType: "certificate", ResourceID: certificate.ID, DisplayName: updatedCertificate.CertificateNameSnapshot, Summary: "talent:" + id + " 更新证书"}).Error; err != nil {
+					return err
+				}
+			}
 		}
 		return tx.Create(&domain.AuditLog{AdminID: adminID, Action: "talent.updated", ResourceType: "talent", ResourceID: id, DisplayName: updated.Name, Summary: "更新人才档案"}).Error
 	})
@@ -194,81 +221,6 @@ func (s *TalentService) Delete(ctx context.Context, id, adminID string) error {
 	})
 }
 
-func (s *TalentService) AddCertificate(ctx context.Context, talentID string, input CertificateInput, adminID string) (domain.Certificate, error) {
-	if err := validateCertificateInput(input); err != nil {
-		return domain.Certificate{}, err
-	}
-	var created domain.Certificate
-	err := s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var talent domain.Talent
-		if err := tx.First(&talent, "id = ?", talentID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrTalentNotFound
-			}
-			return err
-		}
-		var certificateCount int64
-		if err := tx.Model(&domain.Certificate{}).Where("talent_id = ?", talentID).Count(&certificateCount).Error; err != nil {
-			return err
-		}
-		if certificateCount >= 1 {
-			return ErrTalentCertificateLimit
-		}
-		certificate, err := buildCertificate(tx, talentID, input)
-		if err != nil {
-			return err
-		}
-		created = certificate
-		if err := tx.Create(&created).Error; err != nil {
-			return err
-		}
-		return tx.Create(&domain.AuditLog{AdminID: adminID, Action: "certificate.created", ResourceType: "certificate", ResourceID: created.ID, DisplayName: created.CertificateNameSnapshot, Summary: "talent:" + talentID + " 新增证书"}).Error
-	})
-	return created, err
-}
-
-func (s *TalentService) UpdateCertificate(ctx context.Context, talentID, certificateID string, input CertificateInput, adminID string) (domain.Certificate, error) {
-	if err := validateCertificateInput(input); err != nil {
-		return domain.Certificate{}, err
-	}
-	var certificate domain.Certificate
-	err := s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&certificate, "id = ? AND talent_id = ?", certificateID, talentID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrTalentNotFound
-			}
-			return err
-		}
-		updated, err := buildCertificate(tx, talentID, input)
-		if err != nil {
-			return err
-		}
-		updated.ID = certificate.ID
-		if err := tx.Model(&certificate).Updates(&updated).Error; err != nil {
-			return err
-		}
-		certificate = updated
-		return tx.Create(&domain.AuditLog{AdminID: adminID, Action: "certificate.updated", ResourceType: "certificate", ResourceID: certificateID, DisplayName: updated.CertificateNameSnapshot, Summary: "talent:" + talentID + " 更新证书"}).Error
-	})
-	return certificate, err
-}
-
-func (s *TalentService) DeleteCertificate(ctx context.Context, talentID, certificateID, adminID string) error {
-	return s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var certificate domain.Certificate
-		if err := tx.First(&certificate, "id = ? AND talent_id = ?", certificateID, talentID).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return ErrTalentNotFound
-			}
-			return err
-		}
-		if err := tx.Delete(&certificate).Error; err != nil {
-			return err
-		}
-		return tx.Create(&domain.AuditLog{AdminID: adminID, Action: "certificate.deleted", ResourceType: "certificate", ResourceID: certificateID, DisplayName: certificate.CertificateNameSnapshot, Summary: "talent:" + talentID + " 删除证书"}).Error
-	})
-}
-
 func (s *TalentService) Catalogs(ctx context.Context, enabledOnly bool) ([]domain.CertificateCatalog, error) {
 	return s.repo.ListCatalogs(ctx, enabledOnly)
 }
@@ -295,11 +247,8 @@ func validateTalentInput(input TalentInput) error {
 	if len([]rune(input.Note)) > 1000 {
 		return ErrValidation
 	}
-	if len(input.Certificates) > 1 {
-		return ErrValidation
-	}
-	for _, certificate := range input.Certificates {
-		if err := validateCertificateInput(certificate); err != nil {
+	if input.Certificate != nil {
+		if err := validateCertificateInput(*input.Certificate); err != nil {
 			return err
 		}
 	}
@@ -318,7 +267,11 @@ func talentFromInput(input TalentInput) domain.Talent {
 	if status == "" {
 		status = domain.TalentStatusActive
 	}
-	return domain.Talent{Name: strings.TrimSpace(input.Name), IDCardNumber: strings.ToUpper(strings.TrimSpace(input.IDCardNumber)), Gender: input.Gender, BirthDate: input.BirthDate, Phone: strings.TrimSpace(input.Phone), SocialInsuranceStatus: input.SocialInsuranceStatus, NativePlace: input.NativePlace, CurrentLocation: input.CurrentLocation, Education: input.Education, Major: strings.TrimSpace(input.Major), YearsOfExperience: input.YearsOfExperience, PrimaryCertificate: strings.TrimSpace(input.PrimaryCertificate), Compensation: strings.TrimSpace(input.Compensation), BIExpiresOn: strings.TrimSpace(input.BIExpiresOn), CertificateRenewalNote: strings.TrimSpace(input.CertificateRenewalNote), CooperationIntentions: input.CooperationIntentions, ExpectedLocations: input.ExpectedLocations, Note: input.Note, Status: status}
+	primaryCertificate := strings.TrimSpace(input.PrimaryCertificate)
+	if input.Certificate != nil {
+		primaryCertificate = strings.TrimSpace(input.Certificate.Name)
+	}
+	return domain.Talent{Name: strings.TrimSpace(input.Name), IDCardNumber: strings.ToUpper(strings.TrimSpace(input.IDCardNumber)), Gender: input.Gender, BirthDate: input.BirthDate, Phone: strings.TrimSpace(input.Phone), SocialInsuranceStatus: input.SocialInsuranceStatus, NativePlace: input.NativePlace, CurrentLocation: input.CurrentLocation, Education: input.Education, Major: strings.TrimSpace(input.Major), YearsOfExperience: input.YearsOfExperience, PrimaryCertificate: primaryCertificate, Compensation: strings.TrimSpace(input.Compensation), BIExpiresOn: strings.TrimSpace(input.BIExpiresOn), CertificateRenewalNote: strings.TrimSpace(input.CertificateRenewalNote), CooperationIntentions: input.CooperationIntentions, ExpectedLocations: input.ExpectedLocations, Note: input.Note, Status: status}
 }
 
 func generateTalentCode(tx *gorm.DB) (string, error) {
@@ -339,17 +292,15 @@ func generateTalentCode(tx *gorm.DB) (string, error) {
 	return "", ErrValidation
 }
 
-func createCertificates(tx *gorm.DB, talentID string, inputs []CertificateInput) error {
-	for _, input := range inputs {
-		certificate, err := buildCertificate(tx, talentID, input)
-		if err != nil {
-			return err
-		}
-		if err := tx.Create(&certificate).Error; err != nil {
-			return err
-		}
+func createCertificate(tx *gorm.DB, talentID string, input CertificateInput) (domain.Certificate, error) {
+	certificate, err := buildCertificate(tx, talentID, input)
+	if err != nil {
+		return domain.Certificate{}, err
 	}
-	return nil
+	if err := tx.Create(&certificate).Error; err != nil {
+		return domain.Certificate{}, err
+	}
+	return certificate, nil
 }
 
 func buildCertificate(tx *gorm.DB, talentID string, input CertificateInput) (domain.Certificate, error) {

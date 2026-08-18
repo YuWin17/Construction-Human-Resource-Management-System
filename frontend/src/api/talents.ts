@@ -38,11 +38,12 @@ export interface TalentInput {
   expected_locations?: string[]
   note?: string
   status: TalentStatus
-  certificates?: CertificateInput[]
+  certificate?: CertificateInput
 }
 
 export interface Certificate extends Required<Pick<CertificateInput, 'name' | 'is_available'>> {
   id: string
+  category: string
   specialty: string
   certificate_number: string
   issuer: string
@@ -70,8 +71,7 @@ export interface TalentSummary {
   bi_expires_on: string
   certificate_expires_on: string
   certificate_renewal_note: string
-  certificate_names: string[]
-  certificate_options: TalentCertificateOption[]
+  certificate?: TalentCertificateOption
   signing_status: 'signed' | 'expired' | 'unsigned'
   match_status: 'matched' | 'unmatched'
   status: TalentStatus
@@ -79,11 +79,11 @@ export interface TalentSummary {
   updated_at: string
 }
 
-export interface Talent extends Omit<TalentInput, 'certificates'> {
+export interface Talent extends Omit<TalentInput, 'certificate'> {
   id: string
   code: string
   signing_status: 'signed' | 'expired' | 'unsigned'
-  certificates: Certificate[]
+  certificate?: Certificate
   created_at: string
   updated_at: string
 }
@@ -125,20 +125,6 @@ export async function changeTalentStatus(id: string, status: 'archive' | 'restor
 }
 
 export async function deleteTalent(id: string): Promise<void> { await apiClient.delete(`/talents/${id}`) }
-
-export async function addCertificate(talentId: string, input: CertificateInput): Promise<Certificate> {
-  const response = await apiClient.post<ApiEnvelope<Certificate>>(`/talents/${talentId}/certificates`, input)
-  return response.data.data
-}
-
-export async function updateCertificate(talentId: string, certificateId: string, input: CertificateInput): Promise<Certificate> {
-  const response = await apiClient.put<ApiEnvelope<Certificate>>(`/talents/${talentId}/certificates/${certificateId}`, input)
-  return response.data.data
-}
-
-export async function deleteCertificate(talentId: string, certificateId: string): Promise<void> {
-  await apiClient.delete(`/talents/${talentId}/certificates/${certificateId}`)
-}
 
 export async function listCertificateCatalogs(): Promise<CertificateCatalog[]> {
   const response = await apiClient.get<ApiEnvelope<CertificateCatalog[]>>('/certificate-catalogs')

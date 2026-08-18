@@ -29,17 +29,17 @@ type Talent struct {
 	Education              string `gorm:"size:32"`
 	Major                  string `gorm:"size:255"`
 	YearsOfExperience      *int
-	PrimaryCertificate     string   `gorm:"size:100"`
-	Compensation           string   `gorm:"size:64"`
-	BIExpiresOn            string   `gorm:"index;size:10"`
-	CertificateRenewalNote string   `gorm:"type:text"`
-	CooperationIntentions  []string `gorm:"serializer:json"`
-	ExpectedLocations      []string `gorm:"serializer:json"`
-	Note                   string   `gorm:"type:text"`
-	Status                 string   `gorm:"index;not null;size:32"`
-	Certificates           []Certificate
-	CreatedAt              time.Time `gorm:"not null"`
-	UpdatedAt              time.Time `gorm:"index;not null"`
+	PrimaryCertificate     string       `gorm:"size:100"`
+	Compensation           string       `gorm:"size:64"`
+	BIExpiresOn            string       `gorm:"index;size:10"`
+	CertificateRenewalNote string       `gorm:"type:text"`
+	CooperationIntentions  []string     `gorm:"serializer:json"`
+	ExpectedLocations      []string     `gorm:"serializer:json"`
+	Note                   string       `gorm:"type:text"`
+	Status                 string       `gorm:"index;not null;size:32"`
+	Certificate            *Certificate `gorm:"foreignKey:TalentID"`
+	CreatedAt              time.Time    `gorm:"not null"`
+	UpdatedAt              time.Time    `gorm:"index;not null"`
 }
 
 func (t *Talent) BeforeCreate(_ *gorm.DB) error {

@@ -217,7 +217,7 @@ construction-hrms/
 | created_at | timestamp | 创建时间 |
 | updated_at | timestamp | 更新时间 |
 
-约束：同一 `talent_id` 下非空 `certificate_number` 唯一。索引：`talent_id`、`catalog_id`、`expires_on`、`category`。
+约束：`talent_id` 唯一，每位人才持有一份可编辑证书；非空 `certificate_number` 全局唯一。索引：`talent_id`、`catalog_id`、`expires_on`、`category`。
 
 #### `contracts`
 
@@ -308,7 +308,7 @@ admins
   |-- system_settings (updated_by)
 
 talents
-  |-- certificates -- certificate_catalogs
+  |-- certificate (1:1) -- certificate_catalogs
   |-- contracts -- contract_attachments
   |-- reminders
   |-- audit_logs（逻辑关联，不设外键以保存删除审计）
@@ -322,7 +322,7 @@ contracts/certificates
 ### 7.1 人才创建、更新和删除
 
 - 创建人才时验证身份证格式、手机号格式与身份证号全局唯一性。
-- 创建和更新人才、其首批证书时使用单一数据库事务。
+- 创建人才时写入其单份证书；更新人才时可在同一数据库事务中更新该证书，尚未持证的人才可补录证书。
 - 删除人才为不可恢复的物理删除。确认操作后，在事务中删除提醒、附件记录、合同、证书和人才记录；事务成功后删除对应的文件存储对象。
 - 文件存储删除失败时记录错误并进入清理重试队列或由定期清理任务处理，避免接口将文件错误当作数据库删除已失败。
 - 删除审计日志在删除主数据前写入，内容仅记录人才名称、对象 ID、操作者和“已删除”事实，不保存敏感字段。
@@ -419,9 +419,9 @@ contracts/certificates
 | --- | --- | --- |
 | GET | `/dashboard` | 统计与最近数据 |
 | GET | `/talents` | 分页、搜索、组合筛选 |
-| POST | `/talents` | 创建人才和初始证书 |
+| POST | `/talents` | 创建人才及其单份证书 |
 | GET | `/talents/:id` | 获取人才详情和汇总 |
-| PUT | `/talents/:id` | 更新人才基本信息 |
+| PUT | `/talents/:id` | 更新人才基本信息及其单份证书 |
 | POST | `/talents/:id/archive` | 归档人才 |
 | POST | `/talents/:id/restore` | 恢复在库 |
 | DELETE | `/talents/:id` | 物理删除，前端已二次确认，后端写审计 |
@@ -431,9 +431,6 @@ contracts/certificates
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| POST | `/talents/:id/certificates` | 创建人才证书，可即时新增字典名称 |
-| PUT | `/talents/:id/certificates/:certificateId` | 更新证书 |
-| DELETE | `/talents/:id/certificates/:certificateId` | 删除证书 |
 | GET | `/certificate-catalogs` | 获取启用/全部字典项 |
 | POST | `/certificate-catalogs` | 创建字典项 |
 | PUT | `/certificate-catalogs/:id` | 编辑名称、排序、启用状态 |
@@ -506,7 +503,7 @@ contracts/certificates
 | `/login` | 登录 | 登录表单 |
 | `/dashboard` | 仪表盘 | 统计卡、提醒表、最近人才表 |
 | `/talents` | 人才列表 | 搜索筛选栏、表格、导出确认弹窗 |
-| `/talents/new` | 新增人才 | 人才表单、动态证书表单 |
+| `/talents/new` | 新增人才 | 人才表单、单证书表单 |
 | `/talents/:id` | 人才详情 | 基本资料、证书、合同、日志页签 |
 | `/talents/:id/edit` | 编辑人才 | 人才表单 |
 | `/reminders` | 到期提醒 | 类型筛选、状态筛选、批量处理表格 |

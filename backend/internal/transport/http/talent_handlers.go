@@ -12,25 +12,24 @@ import (
 )
 
 type talentListItem struct {
-	ID                     string              `json:"id"`
-	Code                   string              `json:"code"`
-	Name                   string              `json:"name"`
-	IDCardNumber           string              `json:"id_card_number"`
-	Phone                  string              `json:"phone"`
-	SocialInsuranceStatus  string              `json:"social_insurance_status"`
-	PrimaryCertificate     string              `json:"primary_certificate"`
-	Major                  string              `json:"major"`
-	Compensation           string              `json:"compensation"`
-	BIExpiresOn            string              `json:"bi_expires_on"`
-	CertificateExpiresOn   string              `json:"certificate_expires_on"`
-	CertificateRenewalNote string              `json:"certificate_renewal_note"`
-	CertificateNames       []string            `json:"certificate_names"`
-	CertificateOptions     []certificateOption `json:"certificate_options"`
-	SigningStatus          string              `json:"signing_status"`
-	MatchStatus            string              `json:"match_status"`
-	Status                 string              `json:"status"`
-	CurrentLocation        string              `json:"current_location"`
-	UpdatedAt              string              `json:"updated_at"`
+	ID                     string             `json:"id"`
+	Code                   string             `json:"code"`
+	Name                   string             `json:"name"`
+	IDCardNumber           string             `json:"id_card_number"`
+	Phone                  string             `json:"phone"`
+	SocialInsuranceStatus  string             `json:"social_insurance_status"`
+	PrimaryCertificate     string             `json:"primary_certificate"`
+	Major                  string             `json:"major"`
+	Compensation           string             `json:"compensation"`
+	BIExpiresOn            string             `json:"bi_expires_on"`
+	CertificateExpiresOn   string             `json:"certificate_expires_on"`
+	CertificateRenewalNote string             `json:"certificate_renewal_note"`
+	Certificate            *certificateOption `json:"certificate"`
+	SigningStatus          string             `json:"signing_status"`
+	MatchStatus            string             `json:"match_status"`
+	Status                 string             `json:"status"`
+	CurrentLocation        string             `json:"current_location"`
+	UpdatedAt              string             `json:"updated_at"`
 }
 
 type certificateOption struct {
@@ -42,6 +41,7 @@ type certificateOption struct {
 type certificateResponse struct {
 	ID                 string `json:"id"`
 	Name               string `json:"name"`
+	Category           string `json:"category"`
 	Specialty          string `json:"specialty"`
 	CertificateNumber  string `json:"certificate_number"`
 	Issuer             string `json:"issuer"`
@@ -56,31 +56,31 @@ type certificateResponse struct {
 }
 
 type talentDetailResponse struct {
-	ID                     string                `json:"id"`
-	Code                   string                `json:"code"`
-	Name                   string                `json:"name"`
-	IDCardNumber           string                `json:"id_card_number"`
-	Gender                 string                `json:"gender"`
-	BirthDate              string                `json:"birth_date"`
-	Phone                  string                `json:"phone"`
-	SocialInsuranceStatus  string                `json:"social_insurance_status"`
-	NativePlace            string                `json:"native_place"`
-	CurrentLocation        string                `json:"current_location"`
-	Education              string                `json:"education"`
-	Major                  string                `json:"major"`
-	YearsOfExperience      *int                  `json:"years_of_experience"`
-	PrimaryCertificate     string                `json:"primary_certificate"`
-	Compensation           string                `json:"compensation"`
-	BIExpiresOn            string                `json:"bi_expires_on"`
-	CertificateRenewalNote string                `json:"certificate_renewal_note"`
-	CooperationIntentions  []string              `json:"cooperation_intentions"`
-	ExpectedLocations      []string              `json:"expected_locations"`
-	Note                   string                `json:"note"`
-	Status                 string                `json:"status"`
-	SigningStatus          string                `json:"signing_status"`
-	Certificates           []certificateResponse `json:"certificates"`
-	CreatedAt              string                `json:"created_at"`
-	UpdatedAt              string                `json:"updated_at"`
+	ID                     string               `json:"id"`
+	Code                   string               `json:"code"`
+	Name                   string               `json:"name"`
+	IDCardNumber           string               `json:"id_card_number"`
+	Gender                 string               `json:"gender"`
+	BirthDate              string               `json:"birth_date"`
+	Phone                  string               `json:"phone"`
+	SocialInsuranceStatus  string               `json:"social_insurance_status"`
+	NativePlace            string               `json:"native_place"`
+	CurrentLocation        string               `json:"current_location"`
+	Education              string               `json:"education"`
+	Major                  string               `json:"major"`
+	YearsOfExperience      *int                 `json:"years_of_experience"`
+	PrimaryCertificate     string               `json:"primary_certificate"`
+	Compensation           string               `json:"compensation"`
+	BIExpiresOn            string               `json:"bi_expires_on"`
+	CertificateRenewalNote string               `json:"certificate_renewal_note"`
+	CooperationIntentions  []string             `json:"cooperation_intentions"`
+	ExpectedLocations      []string             `json:"expected_locations"`
+	Note                   string               `json:"note"`
+	Status                 string               `json:"status"`
+	SigningStatus          string               `json:"signing_status"`
+	Certificate            *certificateResponse `json:"certificate"`
+	CreatedAt              string               `json:"created_at"`
+	UpdatedAt              string               `json:"updated_at"`
 }
 
 func (h *Handler) ListTalents(c *gin.Context) {
@@ -217,52 +217,6 @@ func (h *Handler) DeleteTalent(c *gin.Context) {
 	RespondData(c, http.StatusOK, gin.H{"message": "人才档案已删除"})
 }
 
-func (h *Handler) AddCertificate(c *gin.Context) {
-	if !h.ensureTalentService(c) {
-		return
-	}
-	var input service.CertificateInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		RespondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "请检查证书资料格式")
-		return
-	}
-	admin, _ := CurrentAdmin(c)
-	certificate, err := h.talents.AddCertificate(c.Request.Context(), c.Param("id"), input, admin.ID)
-	if !h.respondTalentError(c, err) {
-		return
-	}
-	RespondData(c, http.StatusCreated, certificateDTO(certificate, ""))
-}
-
-func (h *Handler) UpdateCertificate(c *gin.Context) {
-	if !h.ensureTalentService(c) {
-		return
-	}
-	var input service.CertificateInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		RespondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "请检查证书资料格式")
-		return
-	}
-	admin, _ := CurrentAdmin(c)
-	certificate, err := h.talents.UpdateCertificate(c.Request.Context(), c.Param("id"), c.Param("certificateId"), input, admin.ID)
-	if !h.respondTalentError(c, err) {
-		return
-	}
-	RespondData(c, http.StatusOK, certificateDTO(certificate, ""))
-}
-
-func (h *Handler) DeleteCertificate(c *gin.Context) {
-	if !h.ensureTalentService(c) {
-		return
-	}
-	admin, _ := CurrentAdmin(c)
-	err := h.talents.DeleteCertificate(c.Request.Context(), c.Param("id"), c.Param("certificateId"), admin.ID)
-	if !h.respondTalentError(c, err) {
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
 func (h *Handler) ListCertificateCatalogs(c *gin.Context) {
 	if !h.ensureTalentService(c) {
 		return
@@ -302,8 +256,6 @@ func (h *Handler) respondTalentError(c *gin.Context, err error) bool {
 	switch {
 	case errors.Is(err, service.ErrTalentNotFound):
 		RespondError(c, http.StatusNotFound, "TALENT_NOT_FOUND", "未找到人才档案")
-	case errors.Is(err, service.ErrTalentCertificateLimit):
-		RespondError(c, http.StatusConflict, "TALENT_CERTIFICATE_LIMIT", "一条人才档案只能关联一个证书，请另建人才记录")
 	case errors.Is(err, service.ErrValidation):
 		RespondError(c, http.StatusBadRequest, "VALIDATION_ERROR", "请检查必填项和格式")
 	default:
@@ -361,15 +313,11 @@ func deliveryOrderSigningPriority(status string) int {
 }
 
 func talentListDTO(t domain.Talent, deliveryStatus talentDeliveryStatus) talentListItem {
-	names := make([]string, 0, len(t.Certificates))
-	options := make([]certificateOption, 0, len(t.Certificates))
 	certificateExpiresOn := ""
-	for _, certificate := range t.Certificates {
-		names = append(names, certificate.CertificateNameSnapshot)
-		options = append(options, certificateOption{ID: certificate.ID, Name: certificate.CertificateNameSnapshot, Specialty: certificate.Specialty})
-		if certificate.ExpiresOn != "" && (certificateExpiresOn == "" || certificate.ExpiresOn < certificateExpiresOn) {
-			certificateExpiresOn = certificate.ExpiresOn
-		}
+	var certificate *certificateOption
+	if t.Certificate != nil {
+		certificate = &certificateOption{ID: t.Certificate.ID, Name: t.Certificate.CertificateNameSnapshot, Specialty: t.Certificate.Specialty}
+		certificateExpiresOn = t.Certificate.ExpiresOn
 	}
 	signingStatus := deliveryStatus.SigningStatus
 	if signingStatus == "" || signingStatus == deliveryOrderStatusPending {
@@ -379,7 +327,7 @@ func talentListDTO(t domain.Talent, deliveryStatus talentDeliveryStatus) talentL
 	if deliveryStatus.Matched {
 		matchStatus = "matched"
 	}
-	return talentListItem{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: maskIDCard(t.IDCardNumber), Phone: maskPhone(t.Phone), SocialInsuranceStatus: t.SocialInsuranceStatus, PrimaryCertificate: t.PrimaryCertificate, Major: t.Major, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateExpiresOn: certificateExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, CertificateNames: names, CertificateOptions: options, SigningStatus: signingStatus, MatchStatus: matchStatus, Status: t.Status, CurrentLocation: t.CurrentLocation, UpdatedAt: t.UpdatedAt.Format(timeLayout)}
+	return talentListItem{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: maskIDCard(t.IDCardNumber), Phone: maskPhone(t.Phone), SocialInsuranceStatus: t.SocialInsuranceStatus, PrimaryCertificate: t.PrimaryCertificate, Major: t.Major, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateExpiresOn: certificateExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, Certificate: certificate, SigningStatus: signingStatus, MatchStatus: matchStatus, Status: t.Status, CurrentLocation: t.CurrentLocation, UpdatedAt: t.UpdatedAt.Format(timeLayout)}
 }
 
 func (h *Handler) certificateSigningStatuses(c *gin.Context, talentID string) map[string]string {
@@ -420,11 +368,12 @@ func signingStatusFromCertificateStatuses(statuses map[string]string) string {
 }
 
 func talentDetailDTO(t domain.Talent, certificateSigningStatuses map[string]string, signingStatus string) talentDetailResponse {
-	certificates := make([]certificateResponse, 0, len(t.Certificates))
-	for _, certificate := range t.Certificates {
-		certificates = append(certificates, certificateDTO(certificate, certificateSigningStatuses[certificate.ID]))
+	var certificate *certificateResponse
+	if t.Certificate != nil {
+		value := certificateDTO(*t.Certificate, certificateSigningStatuses[t.Certificate.ID])
+		certificate = &value
 	}
-	return talentDetailResponse{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: t.IDCardNumber, Gender: t.Gender, BirthDate: t.BirthDate, Phone: t.Phone, SocialInsuranceStatus: t.SocialInsuranceStatus, NativePlace: t.NativePlace, CurrentLocation: t.CurrentLocation, Education: t.Education, Major: t.Major, YearsOfExperience: t.YearsOfExperience, PrimaryCertificate: t.PrimaryCertificate, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, CooperationIntentions: t.CooperationIntentions, ExpectedLocations: t.ExpectedLocations, Note: t.Note, Status: t.Status, SigningStatus: signingStatus, Certificates: certificates, CreatedAt: t.CreatedAt.Format(timeLayout), UpdatedAt: t.UpdatedAt.Format(timeLayout)}
+	return talentDetailResponse{ID: t.ID, Code: t.Code, Name: t.Name, IDCardNumber: t.IDCardNumber, Gender: t.Gender, BirthDate: t.BirthDate, Phone: t.Phone, SocialInsuranceStatus: t.SocialInsuranceStatus, NativePlace: t.NativePlace, CurrentLocation: t.CurrentLocation, Education: t.Education, Major: t.Major, YearsOfExperience: t.YearsOfExperience, PrimaryCertificate: t.PrimaryCertificate, Compensation: t.Compensation, BIExpiresOn: t.BIExpiresOn, CertificateRenewalNote: t.CertificateRenewalNote, CooperationIntentions: t.CooperationIntentions, ExpectedLocations: t.ExpectedLocations, Note: t.Note, Status: t.Status, SigningStatus: signingStatus, Certificate: certificate, CreatedAt: t.CreatedAt.Format(timeLayout), UpdatedAt: t.UpdatedAt.Format(timeLayout)}
 }
 
 const timeLayout = "2006-01-02 15:04"
@@ -434,7 +383,7 @@ func certificateDTO(certificate domain.Certificate, signingStatus string) certif
 		signingStatus = "unsigned"
 	}
 	isCooperating := signingStatus == deliveryOrderStatusSigned
-	return certificateResponse{ID: certificate.ID, Name: certificate.CertificateNameSnapshot, Specialty: certificate.Specialty, CertificateNumber: certificate.CertificateNumber, Issuer: certificate.Issuer, IssuedDate: certificate.IssuedDate, ExpiresOn: certificate.ExpiresOn, RegistrationStatus: certificate.RegistrationStatus, RegisteredCompany: certificate.RegisteredCompany, IsAvailable: certificate.IsAvailable, SigningStatus: signingStatus, IsCooperating: isCooperating, Note: certificate.Note}
+	return certificateResponse{ID: certificate.ID, Name: certificate.CertificateNameSnapshot, Category: certificate.Category, Specialty: certificate.Specialty, CertificateNumber: certificate.CertificateNumber, Issuer: certificate.Issuer, IssuedDate: certificate.IssuedDate, ExpiresOn: certificate.ExpiresOn, RegistrationStatus: certificate.RegistrationStatus, RegisteredCompany: certificate.RegisteredCompany, IsAvailable: certificate.IsAvailable, SigningStatus: signingStatus, IsCooperating: isCooperating, Note: certificate.Note}
 }
 
 func maskIDCard(value string) string {
