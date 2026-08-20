@@ -4,6 +4,7 @@ import { Download, FilePenLine, Paperclip, Plus, Search, Trash2 } from 'lucide-r
 import { useState } from 'react'
 import { apiClient } from '../../api/client'
 import { CertificateNameSelect } from '../talents/CertificateNameSelect'
+import { MobileCompanyList, type CompanyRecord } from './MobileCompanyList'
 
 const api = (url: string, params?: Record<string, string | undefined>) => apiClient.get(url, { params }).then((response) => response.data.data)
 
@@ -19,7 +20,7 @@ export function CompaniesPage() {
   const [attachment, setAttachment] = useState<File | null>(null)
   const [searchForm] = Form.useForm<{ keyword?: string }>()
   const [form] = Form.useForm()
-  const companies = useQuery({ queryKey: ['companies', filters], queryFn: () => api('/companies', filters) })
+  const companies = useQuery<CompanyRecord[]>({ queryKey: ['companies', filters], queryFn: () => api('/companies', filters) as Promise<CompanyRecord[]> })
   const save = useMutation({
     mutationFn: async ({ values, id }: { values: any; id?: string }) => {
       const { requirement_certificate, conditions, ...company } = values
@@ -73,7 +74,7 @@ export function CompaniesPage() {
     setOpen(true)
   }
 
-  function openEdit(company: any) {
+  function openEdit(company: CompanyRecord) {
     const requirement = company.Requirements?.[0]
     setEditingCompany(company)
     setAttachment(null)
@@ -105,7 +106,8 @@ export function CompaniesPage() {
   return <section className="module-page">
     <div className="page-heading"><div><Typography.Title level={2}>企业库</Typography.Title><Typography.Paragraph>维护客户企业、需求证书和合同信息。</Typography.Paragraph></div><Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>新增企业</Button></div>
     <div className="filter-panel"><Form form={searchForm} layout="inline" onFinish={(values) => setFilters({ keyword: values.keyword?.trim() || undefined })}><Form.Item name="keyword"><Input allowClear prefix={<Search size={16} />} placeholder="客户名称或需求证书" /></Form.Item><Form.Item><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={() => { searchForm.resetFields(); setFilters({}) }}>重置</Button></Space></Form.Item></Form></div>
-    <Card className="detail-card"><Table className="data-table" rowKey="ID" loading={companies.isLoading} dataSource={companies.data ?? []} columns={columns} scroll={{ x: 1750 }} /></Card>
+    <Card className="detail-card desktop-company-table"><Table className="data-table" data-testid="desktop-company-table" rowKey="ID" loading={companies.isLoading} dataSource={companies.data ?? []} columns={columns} scroll={{ x: 1750 }} /></Card>
+    <MobileCompanyList items={companies.data ?? []} loading={companies.isLoading} removing={remove.isPending} onEdit={openEdit} onDelete={(companyID) => remove.mutate(companyID)} />
     <Modal width={760} open={open} destroyOnHidden title={editingCompany ? '编辑企业' : '新增企业'} okText="保存" cancelText="取消" confirmLoading={save.isPending} onCancel={closeModal} onOk={() => form.submit()}>
       <Form form={form} layout="vertical" scrollToFirstError={{ behavior: 'smooth', block: 'center', focus: true }} onFinish={(values) => save.mutate({ values, id: editingCompany?.ID })} onFinishFailed={({ errorFields }) => { const firstError = errorFields[0]; if (firstError) message.warning(firstError.errors[0] ?? '请完善必填项') }}>
         <Row gutter={16}>

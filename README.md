@@ -11,31 +11,17 @@
 
 ## 快速启动
 
-### 1. 启动后端
+本地测试环境通过脚本启动，前端固定为 `http://127.0.0.1:5173`，API 为 `http://127.0.0.1:8080`。脚本使用独立的 `backend/data/hrms.local-test.db`，不会读取或写入 CloudBase PostgreSQL。
 
 ```bash
-cd backend
-cp .env.example .env
-go mod tidy
-go run ./cmd/api
+./scripts/local-dev.sh
 ```
 
-后端默认运行在 `http://localhost:8080`，健康检查地址为 `http://localhost:8080/healthz`。
-
-首次启动会自动创建 SQLite 数据库、执行迁移，并按 `.env` 中的 `INITIAL_ADMIN_USERNAME` 和 `INITIAL_ADMIN_PASSWORD` 初始化管理员账号。
-
-### 2. 启动前端
-
-另开一个终端：
+本地测试账号为 `admin`，密码为 `123456`。按 `Ctrl-C` 会同时停止前后端。若要清空**仅本地测试库**后重新初始化账号，运行：
 
 ```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
+./scripts/local-dev.sh --reset
 ```
-
-前端默认运行在 `http://localhost:5173`。
 
 ## 验证命令
 
@@ -52,7 +38,13 @@ npm run build
 
 ## 腾讯云 CloudBase 部署
 
-CloudBase Hosting + CloudBase Run 的部署步骤见 [docs/cloudbase-deploy.md](docs/cloudbase-deploy.md)。本地开发默认使用 SQLite；生产环境以 CloudBase PostgreSQL 为持久化来源，Cloud Run 中的 SQLite 仅为启动后从 PG 载入的内存工作集。未配置 CloudBase API Key 时服务会拒绝启动。
+CloudBase Hosting + CloudBase Run 的发布通过以下脚本执行；它会运行测试和构建、创建安全的最小化 Cloud Run 源码目录、部署 API 与前端并验证公网健康检查：
+
+```bash
+./scripts/release-cloudbase.sh
+```
+
+首次在新电脑发布时，脚本会通过 `tcb login` 请求 CloudBase 授权。只验证本地发布门禁、不修改任何云端资源时，运行 `./scripts/release-cloudbase.sh --dry-run`。完整发布约束与环境变量覆盖方式见 [docs/cloudbase-deploy.md](docs/cloudbase-deploy.md)。
 
 ## 受限缓存环境
 

@@ -29,3 +29,7 @@ frontend/.env.*
 .idea/
 .vscode/
 coverage/
+.cloudbase-release.*/
+frontend/test-results/
+frontend/playwright-report/
+test-results/

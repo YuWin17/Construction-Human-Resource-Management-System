@@ -7,6 +7,7 @@ import { apiClient } from '../../api/client'
 import { listDeliveryOrders, type DeliveryOrderFilters } from '../../api/deliveryOrders'
 import { listTalents } from '../../api/talents'
 import { deliveryOrderBusinessColumns, type DeliveryOrder } from './deliveryOrderColumns'
+import { MobileDeliveryOrderList } from './MobileDeliveryOrderList'
 
 type DeliveryOrderNavigationState = { createForTalentID?: string } | null
 
@@ -113,7 +114,8 @@ export function DeliveryOrdersPage() {
       <Form.Item name="contract_expires_to" label="至"><Input type="date" /></Form.Item>
       <Form.Item><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={resetFilters}>重置</Button></Space></Form.Item>
     </Form></div>
-    <Card><Table rowKey="ID" loading={orders.isLoading} dataSource={orders.data ?? []} columns={columns} scroll={{ x: 1770 }} locale={{ emptyText: '暂无送证单' }} /></Card>
+    <Card className="desktop-delivery-order-table"><Table data-testid="desktop-delivery-order-table" rowKey="ID" loading={orders.isLoading} dataSource={orders.data ?? []} columns={columns} scroll={{ x: 1770 }} locale={{ emptyText: '暂无送证单' }} /></Card>
+    <MobileDeliveryOrderList items={orders.data ?? []} loading={orders.isLoading} removing={remove.isPending} onEdit={openEdit} onDelete={(orderID) => remove.mutate(orderID)} />
     <Modal width={940} open={open} title={editingOrder ? '编辑送证单' : '创建送证单'} okText="保存" cancelText="取消" confirmLoading={save.isPending} onCancel={() => { setOpen(false); setEditingOrder(null) }} onOk={() => form.submit()}>
       <Form form={form} layout="vertical" scrollToFirstError={{ behavior: 'smooth', block: 'center', focus: true }} onFinish={(values) => save.mutate({ values, id: editingOrder?.ID })} onFinishFailed={({ errorFields }) => { const firstError = errorFields[0]; if (firstError) message.warning(firstError.errors[0] ?? '请完善必填项') }}>
         <div className="delivery-order-fields">

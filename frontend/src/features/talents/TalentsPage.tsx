@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { deleteTalent, listTalents, talentStatusLabels, type TalentFilters, type TalentSummary } from '../../api/talents'
 import { CertificateNameSelect } from './CertificateNameSelect'
+import { MobileTalentList } from './MobileTalentList'
 
 export function TalentsPage() {
   const navigate = useNavigate()
@@ -77,10 +78,17 @@ export function TalentsPage() {
         <Form.Item><Space><Button type="primary" htmlType="submit">查询</Button><Button onClick={resetFilters}>重置</Button></Space></Form.Item>
       </Form>
     </div>
-    <Table className="data-table" rowKey="id" loading={talentQuery.isLoading} columns={columns} dataSource={talentQuery.data?.items ?? []} scroll={{ x: 3960 }} pagination={{
+    <Table className="data-table desktop-talent-table" data-testid="desktop-talent-table" rowKey="id" loading={talentQuery.isLoading} columns={columns} dataSource={talentQuery.data?.items ?? []} scroll={{ x: 3960 }} pagination={{
       current: filters.page, pageSize: filters.page_size, total: talentQuery.data?.total ?? 0, showSizeChanger: true, showTotal: (total) => `共 ${total} 条`,
       onChange: (page, pageSize) => setFilters((current) => ({ ...current, page, page_size: pageSize })),
     }} />
+    <MobileTalentList
+      items={talentQuery.data?.items ?? []}
+      loading={talentQuery.isLoading}
+      deleting={deleteMutation.isPending}
+      onEdit={(talent) => navigate(`/talents/${talent.id}/edit`)}
+      onDelete={(talentID) => deleteMutation.mutate(talentID)}
+    />
     {!talentQuery.isLoading && talentQuery.data?.total === 0 ? <div className="table-empty-action"><Button icon={<FilePlus2 size={16} />} onClick={() => navigate('/talents/new')}>录入第一位人才</Button></div> : null}
   </section>
 }
