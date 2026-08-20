@@ -9,8 +9,11 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o
 
 FROM debian:bookworm-slim
 
-RUN useradd --system --uid 10001 --create-home app \
-    && mkdir -p /app/data \
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --create-home app \
+    && mkdir -p /app \
     && chown -R app:app /app
 WORKDIR /app
 COPY --from=builder /out/hrms-api /app/hrms-api
@@ -19,7 +22,7 @@ RUN chown app:app /app/hrms-api
 USER app
 ENV APP_ENV=production \
     HTTP_ADDR=:8080 \
-    DATABASE_DSN=/app/data/hrms.db \
+    DATABASE_DRIVER=cloudbase_pg \
     TIMEZONE=Asia/Shanghai
 EXPOSE 8080
 CMD ["/app/hrms-api"]

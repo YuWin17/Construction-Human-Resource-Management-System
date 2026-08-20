@@ -3,13 +3,15 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Menu,
   Settings,
   Users,
   Building2,
   Send,
 } from 'lucide-react'
-import { Avatar, Button, Layout, Menu, Popconfirm, Typography } from 'antd'
+import { Avatar, Button, Drawer, Layout, Menu as AntMenu, Popconfirm, Typography } from 'antd'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { logout } from '../api/auth'
 
 const { Header, Sider, Content } = Layout
@@ -27,11 +29,18 @@ const navigationItems = [
 export function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false)
 
   async function handleLogout() {
     await logout()
     navigate('/login', { replace: true })
   }
+
+  const menuItems = navigationItems.map((item) => ({
+    key: item.key,
+    icon: item.icon,
+    label: <NavLink to={item.key} onClick={() => setMobileNavigationOpen(false)}>{item.label}</NavLink>,
+  }))
 
   return (
     <Layout className="app-shell">
@@ -40,24 +49,29 @@ export function AppLayout() {
           <div className="brand-symbol">建</div>
           <span>建筑人才管理</span>
         </div>
-        <Menu
+        <AntMenu
           className="navigation-menu"
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={navigationItems.map((item) => ({
-            key: item.key,
-            icon: item.icon,
-            label: <NavLink to={item.key}>{item.label}</NavLink>,
-          }))}
+          items={menuItems}
         />
       </Sider>
       <Layout>
         <Header className="app-header">
-          <div>
+          <div className="header-identity">
+            <Button
+              className="mobile-nav-trigger"
+              aria-label="打开导航菜单"
+              icon={<Menu size={20} />}
+              type="text"
+              onClick={() => setMobileNavigationOpen(true)}
+            />
+            <div>
             <Typography.Text className="header-context">管理员后台</Typography.Text>
             <Typography.Title level={5} className="header-title">
               建筑人力资源人才录入系统
             </Typography.Title>
+            </div>
           </div>
           <div className="header-actions">
             <Typography.Text type="secondary">管理员</Typography.Text>
@@ -71,6 +85,20 @@ export function AppLayout() {
           <Outlet />
         </Content>
       </Layout>
+      <Drawer
+        className="mobile-navigation-drawer"
+        title="建筑人才管理"
+        placement="left"
+        open={mobileNavigationOpen}
+        onClose={() => setMobileNavigationOpen(false)}
+      >
+        <AntMenu
+          className="mobile-navigation-menu"
+          mode="inline"
+          selectedKeys={[location.pathname]}
+          items={menuItems}
+        />
+      </Drawer>
     </Layout>
   )
 }

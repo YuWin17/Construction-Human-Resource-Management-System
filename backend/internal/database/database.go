@@ -5,28 +5,54 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"construction-hrms/backend/internal/domain"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-// OpenSQLite 在打开配置的数据库前创建其父目录。
-func OpenSQLite(dsn string) (*gorm.DB, error) {
-	if dsn != ":memory:" {
-		if err := os.MkdirAll(filepath.Dir(dsn), 0o750); err != nil {
-			return nil, fmt.Errorf("create database directory: %w", err)
+// Open 打开指定数据库。生产环境由 config 包限制为托管 MySQL，避免使用容器本地磁盘。
+func Open(driver, dsn string) (*gorm.DB, error) {
+	var dialector gorm.Dialector
+	switch strings.ToLower(strings.TrimSpace(driver)) {
+	case "sqlite":
+		if err := ensureSQLiteDirectory(dsn); err != nil {
+			return nil, err
 		}
+		dialector = sqlite.Open(dsn)
+	case "mysql":
+		dialector = mysql.Open(dsn)
+	default:
+		return nil, fmt.Errorf("unsupported database driver %q", driver)
 	}
 
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
+		// Schema changes must not introduce new foreign-key constraints on an
+		// existing database. This keeps startup migrations additive.
+		DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("open sqlite database: %w", err)
+		return nil, fmt.Errorf("open %s database: %w", driver, err)
 	}
 	return db, nil
+}
+
+// OpenSQLite is retained for local development and database tests.
+func OpenSQLite(dsn string) (*gorm.DB, error) {
+	return Open("sqlite", dsn)
+}
+
+func ensureSQLiteDirectory(dsn string) error {
+	if dsn != ":memory:" {
+		if err := os.MkdirAll(filepath.Dir(dsn), 0o750); err != nil {
+			return fmt.Errorf("create database directory: %w", err)
+		}
+	}
+	return nil
 }
 
 // Migrate 执行当前业务表结构迁移。

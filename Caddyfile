@@ -1,0 +1,19 @@
+http://100.97.47.112:8081 {
+    bind 100.97.47.112
+
+    encode gzip
+
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    handle /healthz {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    handle {
+        root * "/Users/nb110/work/My Project/Construction Human Resource Management System/frontend/dist"
+        try_files {path} /index.html
+        file_server
+    }
+}

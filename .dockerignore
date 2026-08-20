@@ -1,0 +1,17 @@
+.git
+.cache
+**/.cache
+**/node_modules
+**/dist
+**/.env
+**/.logs
+backend/api
+backend/hrms-api
+backend/data
+backend/storage
+backend/uploads
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store

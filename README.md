@@ -52,7 +52,7 @@ npm run build
 
 ## 腾讯云 CloudBase 部署
 
-CloudBase Hosting + CloudBase Run 的部署步骤见 [docs/cloudbase-deploy.md](docs/cloudbase-deploy.md)。当前后端使用 SQLite，CloudBase Run 本地磁盘不保证持久化，正式长期使用前应迁移到托管数据库。
+CloudBase Hosting + CloudBase Run 的部署步骤见 [docs/cloudbase-deploy.md](docs/cloudbase-deploy.md)。本地开发默认使用 SQLite；生产环境以 CloudBase PostgreSQL 为持久化来源，Cloud Run 中的 SQLite 仅为启动后从 PG 载入的内存工作集。未配置 CloudBase API Key 时服务会拒绝启动。
 
 ## 受限缓存环境
 
@@ -70,6 +70,6 @@ npm install --cache "$PWD/.cache/npm"
 
 ## 目录概览
 
-- `backend/`：Go API 服务，采用 Gin、GORM 和 SQLite。
+- `backend/`：Go API 服务，采用 Gin、GORM；本地使用 SQLite，生产持久化到 CloudBase PostgreSQL。
 - `frontend/`：React + TypeScript 管理后台。
 - `docs/`：需求、界面功能图和技术实现文档。

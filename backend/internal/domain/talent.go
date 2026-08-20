@@ -28,6 +28,8 @@ type Talent struct {
 	Education              string `gorm:"size:32"`
 	Major                  string `gorm:"size:255"`
 	YearsOfExperience      *int
+	CooperationIntentions  string       `gorm:"type:text"`
+	ExpectedLocations      string       `gorm:"type:text"`
 	PrimaryCertificate     string       `gorm:"size:100"`
 	Compensation           string       `gorm:"size:64"`
 	BIExpiresOn            string       `gorm:"index;size:10"`

@@ -55,6 +55,7 @@ type DeliveryOrder struct {
 	RegistrationUnitName string                `gorm:"size:255"`
 	UnitNature           string                `gorm:"size:64"`
 	Status               string                `gorm:"index;not null"`
+	ApprovalStatus       string                `gorm:"size:32;not null;default:pending"`
 	ContractExpiresOn    string                `gorm:"index;size:10"`
 	PerformanceTotal     float64               `gorm:"not null;default:0"`
 	ReceivedTotal        float64               `gorm:"not null;default:0"`

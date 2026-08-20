@@ -14,6 +14,11 @@ func NewRouter(cfg config.Config, logger *slog.Logger, auth *service.AuthService
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery(), RequestLogger(logger), CORS(cfg.CORSAllowedOrigins))
+	for _, candidate := range services {
+		if middleware, ok := candidate.(gin.HandlerFunc); ok {
+			router.Use(middleware)
+		}
+	}
 
 	router.GET("/healthz", func(c *gin.Context) {
 		RespondData(c, http.StatusOK, gin.H{"status": "ok"})
